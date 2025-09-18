@@ -706,7 +706,9 @@ def mainFunction():
     # generate_geometric_modes()
 
     # 2. Optimize the GEM (explore parameters landscape)
-    optimize_and_save_human_high_resolution_results()
+    # optimize_and_save_human_high_resolution_results()
+    print()
+
 
     #3. Visualize performance
     # visualize_GEM_human_vertex_results()
