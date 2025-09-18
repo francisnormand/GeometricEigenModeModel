@@ -1,0 +1,9 @@
+# .gitignore
+# Python junk
+__pycache__/
+*.pyc
+
+# Ignore data folders
+data/
+slurm_output/
+
