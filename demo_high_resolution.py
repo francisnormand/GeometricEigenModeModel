@@ -16,7 +16,8 @@ def generate_slurm_script(num_tasks, script_path, env_path, formulation, path_da
     slurm_script = f"""#!/bin/bash
 
 #SBATCH --account=kg98
-#SBATCH --output=/fs04/kg98/FrancisN/scripts/GitHub/GeometricEigenModeModel/slurm_output/run-array_human_vertex_%A_%a.out
+# SBATCH --output=/fs04/kg98/FrancisN/scripts/GitHub/GeometricEigenModeModel/slurm_output/run-array_human_vertex_%A_%a.out
+#SBATCH --output=$(dirname "$0")/slurm_output/run-array_human_vertex_%A_%a.out
 
 #SBATCH --array=0-{num_tasks-1}
 
@@ -28,7 +29,7 @@ echo "Processing Id" $SLURM_ARRAY_TASK_ID
 echo "Activating virtual environment"
 
 source {env_path}/bin/activate
-conda activate gt_new_new
+conda activate gt_new
 
 # Execute the Python script with the array index and arguments
 python {script_path} --r_s_id $SLURM_ARRAY_TASK_ID --formulation {formulation} --path_data {path_data}
@@ -56,10 +57,12 @@ def wait_for_job(jobid):
         time.sleep(300)  # check every 5 minutes
 
 def generate_slurm_script_chunks(start_idx, end_idx, script_path, env_path, formulation, path_data):
+    cwd = os.getcwd()
     headers = [
         "#!/bin/bash",
         "#SBATCH --account=kg98",
-        "#SBATCH --output=/fs04/kg98/FrancisN/scripts/GitHub/GeometricEigenModeModel/slurm_output/run-array_human_vertex_%A_%a.out",
+        # "#SBATCH --output=/fs04/kg98/FrancisN/scripts/GitHub/GeometricEigenModeModel/slurm_output/run-array_human_vertex_%A_%a.out",
+        f"#SBATCH --output=/{cwd}/slurm_output/run-array_human_vertex_%A_%a.out",
         f"#SBATCH --array={start_idx}-{end_idx}",
         "#SBATCH --time=00:30:00",
         "#SBATCH --qos=shortq"
@@ -69,7 +72,7 @@ def generate_slurm_script_chunks(start_idx, end_idx, script_path, env_path, form
 echo "Processing Id" $SLURM_ARRAY_TASK_ID
 
 source {env_path}/bin/activate
-conda activate gt_new_new
+conda activate gt_new
 
 python {script_path} --r_s_id $SLURM_ARRAY_TASK_ID --formulation {formulation} --path_data {path_data}
 """
@@ -197,20 +200,24 @@ def generate_geometric_modes():
 
     output_eval_filename = path_data + f"/human_high_res_evals_lump_{lump}_masked_{cortex_mask}.npy"
     output_emode_filename = path_data + f"/human_high_res_emodes_lump_{lump}_masked_{cortex_mask}.npy"
-    output_B_matrix_filename = path_data + f"/human_high_res_Bmatrix_lump_{lump}_masked_{cortex_mask}.npy"
+    # output_B_matrix_filename = path_data + f"/human_high_res_Bmatrix_lump_{lump}_masked_{cortex_mask}.npy"
+    output_B_matrix_filename = None # Not saving the B matrix
 
     if os.path.exists(output_emode_filename):
         print(f"{output_emode_filename}")
-        print("geometric modes already exists")
-        sys.exit()
+        print()
+        print("geometric modes already exists and will be overwritten")
+        print()
 
     if cortex_mask is False: 
         evals, emodes = utilities.calc_surface_eigenmodes_nomask(surface_path, output_eval_filename, output_emode_filename, max_num_modes)
     else:
-        cortex_mask_array = utilities.get_human_cortex_mask(path)
+        cortex_mask_array = utilities.get_human_cortex_mask(path_data)
         save_cut = 0  #Not saving temporary cut surface       
         evals, emodes, B_matrix = utilities.calc_surface_eigenmodes(surface_path, cortex_mask_array, output_eval_filename, output_emode_filename, output_B_matrix_filename, save_cut=save_cut, num_modes=max_num_modes, lump=lump)
-
+    
+    print()
+    print("geometric modes were saved")
 
 def optimize_and_save_human_high_resolution_results():
     """
@@ -228,8 +235,8 @@ def optimize_and_save_human_high_resolution_results():
     - For EDR, two chunks of jobs have to be sent, because there are 1000 jobs in total 
     """
 
-    use_job_array = True 
-    # use_job_array = False
+    # use_job_array = True 
+    use_job_array = False
 
     # formulation = "GEM"
     # formulation = "LBO" 
@@ -241,9 +248,12 @@ def optimize_and_save_human_high_resolution_results():
     r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, resampling_weights = get_human_vertex_parameters()
 
     if formulation == "GEM":
+        # GEM has 50 parameters, only once each
         num_jobs = len(r_s_values_list)
     else:
+        # EDR has 100 parameters, 10 times each
         num_jobs = 1000
+        # separating into 2 chunks of 500 jobs
         chunk_size = 500
     
     if use_job_array == True:
@@ -696,16 +706,16 @@ def mainFunction():
     # generate_geometric_modes()
 
     # 2. Optimize the GEM (explore parameters landscape)
-    # optimize_and_save_human_high_resolution_results()
+    optimize_and_save_human_high_resolution_results()
 
     #3. Visualize performance
     # visualize_GEM_human_vertex_results()
 
     #4. Generate benchmark models
     # results = "main"
-    results = "modularity"
+    # results = "modularity"
     # results = "spectral"
-    generate_human_vertex_comparison_results(which_results=results)
+    # generate_human_vertex_comparison_results(which_results=results)
 
     #5. Compare GEM performance with other models
     # visualize_human_vertex_models_comparison()

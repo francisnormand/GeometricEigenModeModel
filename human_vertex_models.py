@@ -12,7 +12,6 @@ import utilities
 import time
 
 
-
 def compute_true_positive_rate(vertexSpaceSC_thresholded_binary_idxes, idxes_edges_empirical):
     return len(np.where(vertexSpaceSC_thresholded_binary_idxes[idxes_edges_empirical] != 0)[0])/len(idxes_edges_empirical)
 
@@ -121,9 +120,23 @@ def get_human_vertex_results(network_measures, vertexModelSC, vertexModelSC_thre
     return results_dict
 
 def EDR_generate_and_save(path_data, task_id):
+    """
+    Generate and save EDR model performance for a given parameter set.
 
-    eta_id = task_id // 10   # 0 to 99 (etas)
-    repetition_id  = task_id % 10   # 0 to 9 (repetitions)
+    Parameters
+    ----------
+    path_data : str or Path
+        Path to the data directory.
+    task_id : int
+        Task index encoding both parameter (eta_id) and repetition (repetition_id).
+
+    Notes
+    -----
+    - eta_id is derived as task_id // 10 representing the $\eta_p$ parameter in the paper (0–99)
+    - repetition_id is derived as task_id % 10  (0–9)
+    """
+    eta_id = task_id // 10 # 0 to 99 (etas)
+    repetition_id = task_id % 10 # 0 to 9 (repetitions)
 
     formulation = "EDR"
     # number_of_repetitions = 10 # All repetitions are saved separately to make it more efficient.
@@ -185,16 +198,13 @@ def EDR_generate_and_save(path_data, task_id):
         os.makedirs(path_base_save)
 
     ##################################### CHECKING IF ALREADY EXISTS
-    exits = check_if_already_exists(network_measures, path_base_save, current_hypothesis)
-    # check_if_already_exists(distance_measures, path_base_save, current_hypothesis)
-    
-    if exits == True:
-        print(exits, "exits")
-        return True
+    # exits = check_if_already_exists(network_measures, path_base_save, current_hypothesis)
+    # if exits == True:
+    #     print(exits, "exits")
+    #     return True #Skipping
     ##################################### 
 
     results_dict = {network_metric:np.empty(len(eta_weights_array)) for network_metric in network_measures}
-    results_dict_distance_measures = {network_metric:np.empty(len(eta_weights_array)) for network_metric in distance_measures}
 
     for idx_eta_w, eta_w in enumerate(eta_weights_array):
         # start_time = time.time()
@@ -208,11 +218,6 @@ def EDR_generate_and_save(path_data, task_id):
         if len(network_measures) != 0:
             compute_and_update_results(results_dict, idx_eta_w, network_measures, vertexModelSC, vertexModelSC_idxes, empirical_node_properties_dict,  empirical_vertex_connectivity_idxes, idxes_edges_empirical, distances)
 
-        if len(distance_measures) != 0:
-            distances_idxes_edges_model = distances[idxes_edges_model]
-            ks_edge_distance_result = ks_2samp(distances_idxes_edges_empirical, distances_idxes_edges_model)[0]
-            results_dict_distance_measures["ks_edge_distance"][idx_eta_w] = ks_edge_distance_result
-    
         # print(time.time() - start_time, "time for one eta")
 
     for net_measure in results_dict.keys():
@@ -244,8 +249,6 @@ def generate_and_save_model_performance(path_data, r_s_id=None, formulation="GEM
     k_range = np.array([k_ for k_ in range(2, 200)])
 
     network_measures = ["degree", "true_positive_rate", "degreeBinary", "spearman_union_weights", "ranked_weights_strength", "clustering", "node connection distance"]
-    # distance_measures = ["ks_edge_distance", "ks_degree", "ks_clustering"]
-    distance_measures = []
 
     if connectome_type == "smoothed":
         current_hypothesis = f"formulation={formulation}_fwhm={fwhm}_target_density={target_density}"
@@ -269,8 +272,6 @@ def generate_and_save_model_performance(path_data, r_s_id=None, formulation="GEM
 
     ##################################### CHECKING IF ALREADY EXISTS
     exists = check_if_already_exists(network_measures, path_base_save, current_hypothesis)
-    # check_if_already_exists(distance_measures, path_base_save, current_hypothesis)
-
     if exists == True:
         return True
     ##################################### 
@@ -295,7 +296,6 @@ def generate_and_save_model_performance(path_data, r_s_id=None, formulation="GEM
     distances_idxes_edges_empirical = distances[idxes_edges_empirical]
 
     results_dict = {network_metric:np.empty(len(k_range)) for network_metric in network_measures}
-    results_dict_distance_measures = {network_metric:np.empty(len(k_range)) for network_metric in distance_measures}
         
     empirical_node_properties_dict = compute_node_properties(network_measures, empirical_vertex_connectivity, distances)
     
@@ -308,18 +308,9 @@ def generate_and_save_model_performance(path_data, r_s_id=None, formulation="GEM
         if len(network_measures) != 0:
             compute_and_update_results(results_dict, k_idx, network_measures, vertexModelSC, vertexModelSC_idxes, empirical_node_properties_dict,  empirical_vertex_connectivity_idxes, idxes_edges_empirical, distances)
 
-        if len(distance_measures) != 0:
-            distances_idxes_edges_model = distances[idxes_edges_model]
-            ks_edge_distance_result = ks_2samp(distances_idxes_edges_empirical, distances_idxes_edges_model)[0]
-            results_dict_distance_measures["ks_edge_distance"][k_idx] = ks_edge_distance_result
-
     for net_measure in results_dict.keys():
         np.save(path_base_save + f"/{net_measure}_{current_hypothesis}", results_dict[net_measure])
         
-    # for distance_measure in results_dict_distance_measures.keys():
-    #     np.save(path_base_save + f"/{distance_measure}_{current_hypothesis}", results_dict_distance_measures[distance_measure])
-
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

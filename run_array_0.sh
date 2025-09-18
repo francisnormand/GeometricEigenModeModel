@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --account=kg98
-#SBATCH --output=/fs04/kg98/FrancisN/scripts/GitHub/GeometricEigenModeModel/slurm_output/run-array_human_vertex_%A_%a.out
+#SBATCH --output=//fs04/kg98/FrancisN/scripts/GitHub/GeometricEigenModeModel/slurm_output/run-array_human_vertex_%A_%a.out
 #SBATCH --array=0-499
 #SBATCH --time=00:30:00
 #SBATCH --qos=shortq

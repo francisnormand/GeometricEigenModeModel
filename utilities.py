@@ -858,8 +858,8 @@ def calc_surface_eigenmodes(surface_input_filename, mask_input_filename, output_
 
     np.save(output_eval_filename, evals)
     np.save(output_emode_filename, emodes_reshaped)
-    np.save(output_B_matrix_filename, B_matrix)
-
+    if output_B_matrix_filename != None:
+        np.save(output_B_matrix_filename, B_matrix)
 
     if save_cut == 0:
         if os.path.exists('temp_cut.vtk'):
