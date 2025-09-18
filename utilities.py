@@ -15,6 +15,10 @@ from matplotlib.colors import LogNorm
 from scipy.stats import pearsonr, spearmanr, linregress
 import matplotlib.lines as mlines
 from matplotlib.ticker import MaxNLocator
+from sklearn.cluster import KMeans
+import bct
+import networkx as nx
+from scipy.sparse.linalg import eigsh
 
 
 def resample_matrix(template, noise='gaussian', seed=None, rand_params=[0.5, 0.1], 
@@ -551,6 +555,8 @@ def grab_human_vertex_LBO_heatmaps(optimization_metric_list, directory, network_
 
     return heatmaps_dict, args_optimal
 
+
+
 def grab_human_EDR_heatmaps(repet_id, optimization_metric_list, directory, network_measures, dimension_files, eta_prob_list, formulation, target_density, connectome_type, fwhm=None, plot_heatmaps=False):
     
     heatmaps_dict = {}
@@ -596,7 +602,6 @@ def grab_human_EDR_heatmaps(repet_id, optimization_metric_list, directory, netwo
 
         average_heatmap = np.mean(np.array(list_of_heatmaps), axis=0)
         args_optimal = np.where(average_heatmap == np.max(average_heatmap))
-    print(args_optimal, "args_optimal within utilities")
 
     return heatmaps_dict, average_heatmap
 
@@ -891,3 +896,54 @@ def calc_surface_eigenmodes_nomask(surface_input_filename, output_eval_filename,
     np.save(output_emode_filename, emodes)
 
     return evals, emodes
+
+def efficient_newman_spectral_communities(G, list_of_number_of_communities):
+    B = nx.modularity_matrix(G)
+
+    max_k = np.max(list_of_number_of_communities)
+    nodes = list(G.nodes())
+
+    partition = {}
+    eigvals, eigvecs = eigsh(B, k=max_k, which="LA")  # Get k largest eigenvectors
+
+    for k in list_of_number_of_communities:
+        kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+        labels = kmeans.fit_predict(eigvecs[:, 0:k])  
+        partition[k] = {nodes[i]: labels[i] for i in range(len(nodes))}
+    
+    return partition
+
+def labelsDict(G, partition_dict):
+    labels_dict = {}
+
+    for key_com, partition in partition_dict.items():
+        labels_dict[key_com] = [partition[n] for n in G.nodes()]
+    return labels_dict
+
+def getDictOfPartitionsSet(partition_dict):
+    partitions_set_dict = {}
+    for key_com, partition in partition_dict.items():
+        partitions_set_dict[key_com] = convertDicttoListOfBrackets(partition)
+    
+    return partitions_set_dict
+
+def convertDicttoListOfBrackets(partition):
+    communities = {}
+
+    for node, community in partition.items():
+        if community not in communities:
+            communities[community] = set()  
+        communities[community].add(node)  
+
+    list_of_sets = list(communities.values())
+
+    return list_of_sets
+
+def getDictOfNVI(labels_dict_empirical, labels_dict_model):
+    nvi_dict = {}
+    for key_com, labels_empirical in labels_dict_empirical.items():
+        labels_model_ = labels_dict_model[key_com]
+
+        nvi_dict[key_com], _ = bct.partition_distance(labels_empirical, labels_model_)
+    
+    return nvi_dict

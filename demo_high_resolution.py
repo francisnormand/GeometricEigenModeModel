@@ -9,6 +9,7 @@ import subprocess
 import connectome_models
 from network_measures_and_statistics import calculate_ks_scores_no_distance, compute_binary_network_properties, compute_node_properties
 import matplotlib.pyplot as plt
+import networkx as nx
 
 def generate_slurm_script(num_tasks, script_path, env_path, formulation, path_data):
     """ Generate the SLURM script for the job array. """
@@ -413,13 +414,15 @@ def get_human_vertex_EDR_parameters():
     return eta_prob_connection_array, eta_weights_array
 
 
-def generate_human_vertex_comparison_results():
+def generate_human_vertex_comparison_results(which_results="main"):
     """
     Generate and save human vertex-level model results.
 
     Models are generated one at a time.
     Stochastic models (EDR and Permuted) are generated 100 times each.
     """
+
+    list_of_number_of_communities = [3, 4, 5 , 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
     from human_vertex_models import get_human_vertex_results
 
@@ -481,7 +484,10 @@ def generate_human_vertex_comparison_results():
     n_vertices = emodes_geo.shape[0]
     idxes_vertex = np.triu_indices(n_vertices, k=1)
     
-    dict_results = {net_measure:[] for net_measure in network_measures}
+    if which_results == "main":        
+        dict_results = {net_measure:[] for net_measure in network_measures}
+    elif which_results == "modularity":
+        dict_results = {n_com:[] for n_com in list_of_number_of_communities}
 
     total_possible_connections = len(idxes_vertex[0])
 
@@ -492,6 +498,12 @@ def generate_human_vertex_comparison_results():
     empirical_connectome_binary = (empirical_vertex_connectivity > 0).astype(int)
     propertiesListEmpirical = compute_binary_network_properties(empirical_connectome_binary)
     n_edges_vertex_empirical = len(np.nonzero(empirical_vertex_connectivity_idxes)[0])
+
+    if which_results == "modularity":
+        G_empirical = nx.from_numpy_array(empirical_connectome_binary)
+        empirical_partition_dict = utilities.efficient_newman_spectral_communities(G_empirical, list_of_number_of_communities)
+        empirical_labels_dict = utilities.labelsDict(G_empirical, empirical_partition_dict)
+        empirical_partitions_set_dict = utilities.getDictOfPartitionsSet(empirical_partition_dict)
 
     directory = f"/home/fnormand/kg98/FrancisN/scripts/GitHub/GeometricEigenModeModel/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation_generate}"
 
@@ -507,11 +519,21 @@ def generate_human_vertex_comparison_results():
         model = connectome_models.generate_high_res_GEM_humans(best_r_s, best_k, emodes_geo, evals_geo, target_density, idxes_vertex, resampling_weights)
         model_idxes = model[idxes_vertex]
         
-        results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances, propertiesListEmpirical)
+        if which_results == "main":
+            results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances, propertiesListEmpirical)
+            
+            for net_measure in network_measures:
+                dict_results[net_measure].append(results[net_measure])
+
+        elif which_results == "modularity":
+            model = (model > 0).astype(int)
+            G_model = nx.from_numpy_array(model)
+            model_partition_dict = utilities.efficient_newman_spectral_communities(G_model, list_of_number_of_communities)
+            model_labels_dict = utilities.labelsDict(G_model, model_partition_dict)
+            nvi_dict = utilities.getDictOfNVI(empirical_labels_dict, model_labels_dict)
+            for n_com  in nvi_dict.keys():
+                dict_results[n_com].append(nvi_dict[n_com])
         
-        for net_measure in network_measures:
-            dict_results[net_measure].append(results[net_measure])
-       
 
     elif formulation_generate == formulation_LBO:
 
@@ -524,10 +546,20 @@ def generate_human_vertex_comparison_results():
         model = connectome_models.generate_high_res_LBO_humans(None, best_k, emodes_geo, evals_geo, target_density, idxes_vertex, resampling_weights)
         model_idxes = model[idxes_vertex]
         
-        results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances, propertiesListEmpirical)
-        
-        for net_measure in network_measures:
-            dict_results[net_measure].append(results[net_measure])
+        if which_results == "main":
+            results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances, propertiesListEmpirical)
+            
+            for net_measure in network_measures:
+                dict_results[net_measure].append(results[net_measure])
+
+        elif which_results == "modularity":
+            model = (model > 0).astype(int)
+            G_model = nx.from_numpy_array(model)
+            model_partition_dict = utilities.efficient_newman_spectral_communities(G_model, list_of_number_of_communities)
+            model_labels_dict = utilities.labelsDict(G_model, model_partition_dict)
+            nvi_dict = utilities.getDictOfNVI(empirical_labels_dict, model_labels_dict)
+            for n_com  in nvi_dict.keys():
+                dict_results[n_com].append(nvi_dict[n_com])
 
 
     elif formulation_generate == formulation_permuted_evals:
@@ -546,6 +578,7 @@ def generate_human_vertex_comparison_results():
 
         evals_geo_k = evals_geo[0:best_k]
         number_of_repetitions = 100
+
         for repet_ in range(number_of_repetitions):
             print(repet_, "repet shuffled evals")
             evals_geo_k_copy = np.copy(evals_geo_k) 
@@ -554,19 +587,25 @@ def generate_human_vertex_comparison_results():
             model = connectome_models.generate_high_res_GEM_humans(best_r_s, best_k, emodes_geo, evals_geo_k_copy, target_density, idxes_vertex, resampling_weights)
             model_idxes = model[idxes_vertex]
             
-            results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances, propertiesListEmpirical)
+            if which_results == "main":
+                results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances, propertiesListEmpirical)
             
-            for net_measure in network_measures:
-                dict_results[net_measure].append(results[net_measure])
+                for net_measure in network_measures:
+                    dict_results[net_measure].append(results[net_measure])
+
+            elif which_results == "modularity":
+                model = (model > 0).astype(int)
+                G_model = nx.from_numpy_array(model)
+                model_partition_dict = utilities.efficient_newman_spectral_communities(G_model, list_of_number_of_communities)
+                model_labels_dict = utilities.labelsDict(G_model, model_partition_dict)
+                nvi_dict = utilities.getDictOfNVI(empirical_labels_dict, model_labels_dict)
+                for n_com  in nvi_dict.keys():
+                    dict_results[n_com].append(nvi_dict[n_com])
 
 
     elif formulation_generate == formulation_EDR:
         eta_prob_connection_array, eta_weights_array = get_human_vertex_EDR_parameters()
         dimension_files_EDR = (len(eta_prob_connection_array), len(eta_weights_array))
-
-        # print(eta_weights_array[75], "75")
-        # print(eta_weights_array[31], "31")
-        # print(eta_weights_array[25], "25")
 
         n_EDR_vertex_repet = 10
         number_of_repetitions = 100
@@ -580,11 +619,7 @@ def generate_human_vertex_comparison_results():
             
         moving_sum_average_heatmap /= n_EDR_vertex_repet
         args_optimal = np.where(moving_sum_average_heatmap == np.max(moving_sum_average_heatmap))
-        # print(args_optimal, 'args_optimal')
         best_eta_prob, best_eta_weights = eta_prob_connection_array[args_optimal[0][0]], eta_weights_array[args_optimal[1][0]]
-
-        # best_eta_weights = eta_weights_array[25]
-        print(best_eta_prob, best_eta_weights, "best_eta_prob, best_eta_weights")
 
         best_params = (best_eta_prob, best_eta_weights)
         for repet_ in range(number_of_repetitions):
@@ -592,17 +627,21 @@ def generate_human_vertex_comparison_results():
             model = connectome_models.generate_EDR_vertex_model(best_eta_prob, best_eta_weights, distances, idxes_vertex, n_vertices, n_edges_vertex_empirical, total_possible_connections, resampling_weights)
             model_idxes = model[idxes_vertex]
             
-            results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances, propertiesListEmpirical)
+            if which_results == "main":
+                results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances, propertiesListEmpirical)
             
-            for net_measure in network_measures:
-                print(net_measure, results[net_measure])
-                dict_results[net_measure].append(results[net_measure])
+                for net_measure in network_measures:
+                    dict_results[net_measure].append(results[net_measure])
 
-        for net_measure in network_measures:
-            print(net_measure, np.mean(dict_results[net_measure]))
-        
-        sys.exit()
-    
+            elif which_results == "modularity":
+                model = (model > 0).astype(int)
+                G_model = nx.from_numpy_array(model)
+                model_partition_dict = utilities.efficient_newman_spectral_communities(G_model, list_of_number_of_communities)
+                model_labels_dict = utilities.labelsDict(G_model, model_partition_dict)
+                nvi_dict = utilities.getDictOfNVI(empirical_labels_dict, model_labels_dict)
+                for n_com  in nvi_dict.keys():
+                    dict_results[n_com].append(nvi_dict[n_com])
+
     elif formulation_generate == formulation_Random:
         number_of_repetitions = 100
         best_params = 0
@@ -611,17 +650,30 @@ def generate_human_vertex_comparison_results():
             model = connectome_models.generate_random_vertex_model(n_vertices, total_possible_connections, n_edges_vertex_empirical, idxes_vertex, weighted=True)
             model_idxes = model[idxes_vertex]
             
-            results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances, propertiesListEmpirical)
+            if which_results == "main":
+                results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances, propertiesListEmpirical)
             
-            for net_measure in network_measures:
-                dict_results[net_measure].append(results[net_measure])
+                for net_measure in network_measures:
+                    dict_results[net_measure].append(results[net_measure])
 
+            elif which_results == "modularity":
+                model = (model > 0).astype(int)
+                G_model = nx.from_numpy_array(model)
+                model_partition_dict = utilities.efficient_newman_spectral_communities(G_model, list_of_number_of_communities)
+                model_labels_dict = utilities.labelsDict(G_model, model_partition_dict)
+                nvi_dict = utilities.getDictOfNVI(empirical_labels_dict, model_labels_dict)
+                for n_com  in nvi_dict.keys():
+                    dict_results[n_com].append(nvi_dict[n_com])
+
+    
+    
     directory_save = directory + f"/{opt_metric_str}"
     if not os.path.exists(directory_save):
         os.makedirs(directory_save)
     
-    np.save(directory_save+"_optimized_results", dict_results, allow_pickle=True)
-    np.save(directory_save+"_best_params", np.array(best_params))
+    np.save(directory_save+f"_{which_results}_optimized_results", dict_results, allow_pickle=True)
+    if which_results == "main":
+        np.save(directory_save+"_best_params", np.array(best_params))
 
 
 def compare_human_vertex_models():
@@ -650,7 +702,10 @@ def mainFunction():
     # visualize_GEM_human_vertex_results()
 
     #4. Generate benchmark models
-    generate_human_vertex_comparison_results()
+    # results = "main"
+    results = "modularity"
+    # results = "spectral"
+    generate_human_vertex_comparison_results(which_results=results)
 
     #5. Compare GEM performance with other models
     # visualize_human_vertex_models_comparison()
