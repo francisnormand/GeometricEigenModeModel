@@ -10,6 +10,7 @@ from connectome_models import generate_high_res_GEM_humans, generate_high_res_LB
 from network_measures_and_statistics import compute_node_properties
 import matplotlib.pyplot as plt
 import networkx as nx
+import pandas as pd
 
 def generate_slurm_script(num_tasks, script_path, formulation):
     """ Generate the SLURM script for the job array. """
@@ -668,21 +669,21 @@ def generate_human_vertex_comparison_results(which_results="main"):
                 for n_com  in nvi_dict.keys():
                     dict_results[n_com].append(nvi_dict[n_com])
 
-    
-    
-    directory_save = directory + f"/{opt_metric_str}"
+
+    directory_save = directory + f"/optimized_for_{opt_metric_str}"
     if not os.path.exists(directory_save):
         os.makedirs(directory_save)
     
-    np.save(directory_save+f"_{which_results}_optimized_results", dict_results, allow_pickle=True)
+    np.save(directory_save+ f"/{which_results}_optimized_results", dict_results, allow_pickle=True)
+
     if which_results == "main":
-        np.save(directory_save+"_best_params", np.array(best_params))
+        np.save(directory_save+ "/best_params", np.array(best_params))
 
 
-def visualize_human_vertex_cross_val():
+def visualize_human_vertex_model_comparison():
 
     which_results = "main"
-    cmap = fixed_get_parameters.get_colormap()
+    cmap = utilities.get_colormap()
 
     color_optimized = cmap(0.5)
     color_not_optimized = color_optimized
@@ -711,7 +712,7 @@ def visualize_human_vertex_cross_val():
     
     optimization_metric_list = ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]
 
-    opt_str = "_".join(optimization_metric_list)
+    opt_metric_str = "_".join(optimization_metric_list)
 
     # measure_colors = {
     # measure: (color_optimized if measure in optimization_metric_list else color_not_optimized)
@@ -729,7 +730,9 @@ def visualize_human_vertex_cross_val():
     formulation_Random:optimization_metric_list,
     }
 
-    def load_results(models, measures, result_type):
+    print(which_results, "which reuslts")
+
+    def load_results(models, measures, which_results):
         all_data = []
         for model in models:
             print(model, "model")
@@ -737,11 +740,10 @@ def visualize_human_vertex_cross_val():
             subdir = os.path.join(
                 results_base_dir, connectome_type,
                 f"resampled_weights_{resampling_weights}",
-                f"formulation_{model}", f"/{opt_metric_str}"
+                f"formulation_{model}", f"/optimized_for_{opt_metric_str}"
             )
             
-            
-            filename = f"_{which_results}_optimized_results.npy"
+            filename = f"{which_results}_optimized_results.npy"
             filepath = os.path.join(subdir, filename)
 
             if not os.path.exists(filepath):
@@ -749,7 +751,7 @@ def visualize_human_vertex_cross_val():
                 continue
 
             results_dict = np.load(filepath, allow_pickle=True).item()
-            if result_type != "cross_val_best_parameters":
+            if which_results == "main":
                 for measure in measures:
                     print(measure, "measure")
                     if measure not in results_dict:
@@ -771,14 +773,14 @@ def visualize_human_vertex_cross_val():
 
         return pd.DataFrame(all_data)
 
-    df_net = load_results(list_of_models, network_measures, "cross_val_results")
+    df_net = load_results(list_of_models, network_measures, which_results)
     utilities.plot_all_measures_together(df_net, "Network Measure", measure_colors, exclude_models_by_measure, different_opt_metrics=True, model_optimization_metrics=model_optimization_metrics, color_optimized=color_optimized, color_not_optimized=color_not_optimized, alpha=alpha)
     plt.show()
 
 def compare_human_vertex_models(which_results="main"):
     
     if which_results == "main":
-        visualize_human_vertex_cross_val()
+        visualize_human_vertex_model_comparison()
     
 
 # Current working director
@@ -821,10 +823,10 @@ def mainFunction():
     # results = "spectral"
     
     #4. Generate benchmark models
-    # generate_human_vertex_comparison_results(which_results=results)
+    generate_human_vertex_comparison_results(which_results=results)
 
     #5. Compare GEM performance with other models
-    compare_human_vertex_models(results)
+    # compare_human_vertex_models(which_results=results)
 
 
 if __name__ == "__main__":
