@@ -2,6 +2,7 @@
 # Python junk
 __pycache__/
 *.pyc
+*.sh
 
 # Ignore data folders
 data/parcellations/
