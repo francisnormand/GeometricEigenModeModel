@@ -16,6 +16,6 @@ TBF
 The repository includes an `environment.yml` file to recreate the exact environment:
 
 ```bash
-conda env create -f GEM_env.yml
-conda activate gt_new
+conda env create -f environment.yml
+conda activate geom-eigen-model
 
