@@ -5,11 +5,12 @@ Code and data for the manuscript "Geometric constraints on the architecture of m
 ---
 
 ## Repository Structure
-TBF
 
 ## Getting Started
 
 ### 1. Download the repository
+
+Download the data from this OSF repository: https://osf.io/rz3hw/
 
 ### 2. Set up the conda environment
 
