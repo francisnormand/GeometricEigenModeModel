@@ -271,9 +271,9 @@ def generate_and_save_model_performance(path_data, r_s_id=None, formulation="GEM
         os.makedirs(path_base_save)
 
     ##################################### CHECKING IF ALREADY EXISTS
-    exists = check_if_already_exists(network_measures, path_base_save, current_hypothesis)
-    if exists == True:
-        return True
+    # exists = check_if_already_exists(network_measures, path_base_save, current_hypothesis)
+    # if exists == True:
+    #     return True
     ##################################### 
     
     n_vertices = empirical_vertex_connectivity.shape[0]

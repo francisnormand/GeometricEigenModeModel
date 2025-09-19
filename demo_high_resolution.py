@@ -11,13 +11,12 @@ from network_measures_and_statistics import calculate_ks_scores_no_distance, com
 import matplotlib.pyplot as plt
 import networkx as nx
 
-def generate_slurm_script(num_tasks, script_path, env_path, formulation, path_data):
+def generate_slurm_script(num_tasks, script_path, formulation):
     """ Generate the SLURM script for the job array. """
     slurm_script = f"""#!/bin/bash
 
 #SBATCH --account=kg98
-# SBATCH --output=/fs04/kg98/FrancisN/scripts/GitHub/GeometricEigenModeModel/slurm_output/run-array_human_vertex_%A_%a.out
-#SBATCH --output=$(dirname "$0")/slurm_output/run-array_human_vertex_%A_%a.out
+#SBATCH --output={cwd}/slurm_output/run-array_human_vertex_%A_%a.out
 
 #SBATCH --array=0-{num_tasks-1}
 
@@ -29,7 +28,7 @@ echo "Processing Id" $SLURM_ARRAY_TASK_ID
 echo "Activating virtual environment"
 
 source {env_path}/bin/activate
-conda activate gt_new
+conda activate {conda_env_name}
 
 # Execute the Python script with the array index and arguments
 python {script_path} --r_s_id $SLURM_ARRAY_TASK_ID --formulation {formulation} --path_data {path_data}
@@ -56,13 +55,12 @@ def wait_for_job(jobid):
         print(f"Waiting for job {jobid} to finish...")
         time.sleep(300)  # check every 5 minutes
 
-def generate_slurm_script_chunks(start_idx, end_idx, script_path, env_path, formulation, path_data):
-    cwd = os.getcwd()
+def generate_slurm_script_chunks(start_idx, end_idx, script_path, formulation):
+    
     headers = [
         "#!/bin/bash",
         "#SBATCH --account=kg98",
-        # "#SBATCH --output=/fs04/kg98/FrancisN/scripts/GitHub/GeometricEigenModeModel/slurm_output/run-array_human_vertex_%A_%a.out",
-        f"#SBATCH --output=/{cwd}/slurm_output/run-array_human_vertex_%A_%a.out",
+        f"#SBATCH --output={cwd}/slurm_output/run-array_human_vertex_%A_%a.out",
         f"#SBATCH --array={start_idx}-{end_idx}",
         "#SBATCH --time=00:30:00",
         "#SBATCH --qos=shortq"
@@ -72,13 +70,13 @@ def generate_slurm_script_chunks(start_idx, end_idx, script_path, env_path, form
 echo "Processing Id" $SLURM_ARRAY_TASK_ID
 
 source {env_path}/bin/activate
-conda activate gt_new
+conda activate {conda_env_name}
 
 python {script_path} --r_s_id $SLURM_ARRAY_TASK_ID --formulation {formulation} --path_data {path_data}
 """
     return "\n".join(headers) + body
 
-def submit_slurm_jobs_chunks(num_tasks, script_path, env_path, formulation, path_data, chunk_size=500):
+def submit_slurm_jobs_chunks(num_tasks, script_path, formulation, path_data, chunk_size=500):
     import math
     num_chunks = math.ceil(num_tasks / chunk_size)
 
@@ -87,7 +85,7 @@ def submit_slurm_jobs_chunks(num_tasks, script_path, env_path, formulation, path
         start_idx = i * chunk_size
         end_idx = min((i+1)*chunk_size - 1, num_tasks - 1)
 
-        slurm_script = generate_slurm_script_chunks(start_idx, end_idx, script_path, env_path, formulation, path_data)
+        slurm_script = generate_slurm_script_chunks(start_idx, end_idx, script_path, formulation)
         slurm_file = f"run_array_{i}.sh"
         with open(slurm_file, "w") as f:
             f.write(slurm_script)
@@ -235,12 +233,13 @@ def optimize_and_save_human_high_resolution_results():
     - For EDR, two chunks of jobs have to be sent, because there are 1000 jobs in total 
     """
 
-    # use_job_array = True 
-    use_job_array = False
+    
+    use_job_array = True 
+    # use_job_array = False
 
-    # formulation = "GEM"
+    formulation = "GEM"
     # formulation = "LBO" 
-    formulation = "EDR"
+    # formulation = "EDR"
 
     if formulation == "LBO":
         use_job_array = False # LBO has no r_s parameter, so no need for a job array.
@@ -257,25 +256,22 @@ def optimize_and_save_human_high_resolution_results():
         chunk_size = 500
     
     if use_job_array == True:
-        script_path = "/home/fnormand/kg98/FrancisN/scripts/GitHub/GeometricEigenModeModel/human_vertex_models.py"
+        script_path = f"{cwd}/human_vertex_models.py"
         print(script_path, "script_path")
         
-        # Path to the Conda environment
-        env_path = os.path.expanduser("/fs04/kg98/FrancisN/scripts/python_env/miniconda")
-
         if num_jobs > 999:
             submit_slurm_jobs_chunks(
                 num_tasks=num_jobs,
                 script_path=script_path,
-                env_path=env_path,
                 formulation=formulation,
                 path_data=path_data,
                 chunk_size=chunk_size,  # adjust chunk size if needed
             )
+            print("submitting chunks of a job array")
 
         else:
             # Generate and submit the SLURM job array
-            slurm_script = generate_slurm_script(num_jobs, script_path, env_path, formulation, path_data)
+            slurm_script = generate_slurm_script(num_jobs, script_path, formulation)
             submit_slurm_job(slurm_script)
             print("submitted job array")
     
@@ -312,8 +308,7 @@ def visualize_GEM_human_vertex_results(plot_connectivity_matrices=False):
 
     formulation = "GEM"
 
-    # directory = f"/home/fnormand/kg98_scratch/FrancisN/Results/paper_GNM/human_vertex/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation}"
-    directory = f"/home/fnormand/kg98/FrancisN/scripts/GitHub/GeometricEigenModeModel/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation}"
+    directory = f"{cwd}/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation}"
 
     k_range = np.array([k_ for k_ in range(2, 200)])
 
@@ -331,7 +326,7 @@ def visualize_GEM_human_vertex_results(plot_connectivity_matrices=False):
     dimension_files = (len(r_s_values_list), len(k_range))
 
     heatmaps_dict, args_optimal = utilities.grab_human_vertex_heatmaps(optimization_metric_list, directory, network_measures, dimension_files, r_s_values_list, formulation, target_density, connectome_type, fwhm, plot_all=False, plot_opt=False)
-    # plt.show() # set the arguments above to 'True' to visualize the optimization landscape
+    # plt.show() # set the arguments above to 'True' to visualize optimization landscape
 
     print()
     print("optimized network measures")
@@ -447,8 +442,8 @@ def generate_human_vertex_comparison_results(which_results="main"):
     # formulation_generate = formulation_GEM
     # formulation_generate = formulation_LBO
     # formulation_generate = formulation_permuted_evals
-    formulation_generate = formulation_EDR
-    # formulation_generate = formulation_Random
+    # formulation_generate = formulation_EDR
+    formulation_generate = formulation_Random
     ############################################################
 
     lump = False
@@ -515,7 +510,7 @@ def generate_human_vertex_comparison_results(which_results="main"):
         empirical_labels_dict = utilities.labelsDict(G_empirical, empirical_partition_dict)
         empirical_partitions_set_dict = utilities.getDictOfPartitionsSet(empirical_partition_dict)
 
-    directory = f"/home/fnormand/kg98/FrancisN/scripts/GitHub/GeometricEigenModeModel/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation_generate}"
+    directory = f"{cwd}/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation_generate}"
 
     if formulation_generate == formulation_GEM:
         dimension_files_geo = (len(r_s_values_list), len(k_range))
@@ -576,7 +571,7 @@ def generate_human_vertex_comparison_results(which_results="main"):
 
         dimension_files_geo = (len(r_s_values_list), len(k_range))
         # Loading the results from formulation_GEM.
-        directory = f"/home/fnormand/kg98/FrancisN/scripts/GitHub/GeometricEigenModeModel/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation_GEM}"
+        directory = f"{cwd}/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation_GEM}"
         heatmaps_dict, args_optimal = utilities.grab_human_vertex_heatmaps(optimization_metric_list, directory, network_measures, dimension_files_geo, r_s_values_list, formulation_GEM, target_density, connectome_type, fwhm)    
         
         best_r_s = r_s_values_list[args_optimal[0][0]]
@@ -690,9 +685,23 @@ def compare_human_vertex_models():
     pass
 
 
+# Current working director
+cwd = os.getcwd()
 
-#Global variable here. So it only is defined once. 
-path_data = "/home/fnormand/kg98/FrancisN/scripts/GitHub/GeometricEigenModeModel/data/human_high_res"
+# Global variable here. So it only is defined once. 
+path_data = f"{cwd}/data/human_high_res"
+
+# Path to the Conda environment
+conda_prefix = os.environ.get("CONDA_PREFIX")
+
+env_path = conda_prefix.split("/conda/")[0]
+# print(env_path, "base_conda_path")
+
+# Current environment name
+conda_env_name = os.environ.get("CONDA_DEFAULT_ENV")
+# print(conda_env_name)
+
+# sys.exit()
 
 def mainFunction():
     """
@@ -706,8 +715,8 @@ def mainFunction():
     # generate_geometric_modes()
 
     # 2. Optimize the GEM (explore parameters landscape)
-    # optimize_and_save_human_high_resolution_results()
-    print()
+    optimize_and_save_human_high_resolution_results()
+    # print()
 
 
     #3. Visualize performance
