@@ -4,7 +4,6 @@ import numpy as np
 import lapy
 from scipy.spatial.distance import pdist
 import nibabel as nib
-# from nibabel.freesurfer.io import read_geometry
 import numpy as np
 import os
 import sys

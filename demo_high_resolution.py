@@ -6,8 +6,8 @@ import sys
 import os
 import json
 import subprocess
-import connectome_models
-from network_measures_and_statistics import calculate_ks_scores_no_distance, compute_binary_network_properties, compute_node_properties
+from connectome_models import generate_high_res_GEM_humans, generate_high_res_LBO_humans, generate_EDR_vertex_model, generate_random_vertex_model
+from network_measures_and_statistics import compute_node_properties
 import matplotlib.pyplot as plt
 import networkx as nx
 
@@ -369,7 +369,6 @@ def visualize_GEM_human_vertex_results(plot_connectivity_matrices=False):
     empirical_node_properties_dict = compute_node_properties(network_measures, empirical_vertex_connectivity, distances)
 
     empirical_connectome_binary = (empirical_vertex_connectivity > 0).astype(int)
-    propertiesListEmpirical = compute_binary_network_properties(empirical_connectome_binary)
     n_edges_vertex_empirical = len(np.nonzero(empirical_vertex_connectivity_idxes)[0])
 
     if plot_connectivity_matrices == True:
@@ -377,7 +376,7 @@ def visualize_GEM_human_vertex_results(plot_connectivity_matrices=False):
         plt.title("Empirical vertex connectome")
         # plt.show()
                                                                     
-    geometric_model = connectome_models.generate_high_res_GEM_humans(best_r_s, best_k, emodes_geo, evals_geo, target_density, idxes_vertex, resampling_weights)
+    geometric_model = generate_high_res_GEM_humans(best_r_s, best_k, emodes_geo, evals_geo, target_density, idxes_vertex, resampling_weights)
     
     if plot_connectivity_matrices == True:
         utilities.plotConnectivity(geometric_model, idxes_vertex, figsize=(13,11), original_cmap=cmap_, show_cbar=True)
@@ -501,7 +500,6 @@ def generate_human_vertex_comparison_results(which_results="main"):
     empirical_vertex_connectivity_idxes = empirical_vertex_connectivity[idxes_vertex]
     empirical_node_properties_dict = compute_node_properties(network_measures, empirical_vertex_connectivity, distances)
     empirical_connectome_binary = (empirical_vertex_connectivity > 0).astype(int)
-    propertiesListEmpirical = compute_binary_network_properties(empirical_connectome_binary)
     n_edges_vertex_empirical = len(np.nonzero(empirical_vertex_connectivity_idxes)[0])
 
     if which_results == "modularity":
@@ -521,11 +519,11 @@ def generate_human_vertex_comparison_results(which_results="main"):
         best_params = (best_r_s, best_k)
         
         print(f"r_s={best_r_s}, k={best_k}")
-        model = connectome_models.generate_high_res_GEM_humans(best_r_s, best_k, emodes_geo, evals_geo, target_density, idxes_vertex, resampling_weights)
+        model = generate_high_res_GEM_humans(best_r_s, best_k, emodes_geo, evals_geo, target_density, idxes_vertex, resampling_weights)
         model_idxes = model[idxes_vertex]
         
         if which_results == "main":
-            results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances, propertiesListEmpirical)
+            results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
             
             for net_measure in network_measures:
                 dict_results[net_measure].append(results[net_measure])
@@ -548,11 +546,11 @@ def generate_human_vertex_comparison_results(which_results="main"):
         best_params = (best_k)
         print(f" LBO, best k={best_k}")
 
-        model = connectome_models.generate_high_res_LBO_humans(None, best_k, emodes_geo, evals_geo, target_density, idxes_vertex, resampling_weights)
+        model = generate_high_res_LBO_humans(None, best_k, emodes_geo, evals_geo, target_density, idxes_vertex, resampling_weights)
         model_idxes = model[idxes_vertex]
         
         if which_results == "main":
-            results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances, propertiesListEmpirical)
+            results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
             
             for net_measure in network_measures:
                 dict_results[net_measure].append(results[net_measure])
@@ -589,11 +587,11 @@ def generate_human_vertex_comparison_results(which_results="main"):
             evals_geo_k_copy = np.copy(evals_geo_k) 
             np.random.shuffle(evals_geo_k_copy)
 
-            model = connectome_models.generate_high_res_GEM_humans(best_r_s, best_k, emodes_geo, evals_geo_k_copy, target_density, idxes_vertex, resampling_weights)
+            model = generate_high_res_GEM_humans(best_r_s, best_k, emodes_geo, evals_geo_k_copy, target_density, idxes_vertex, resampling_weights)
             model_idxes = model[idxes_vertex]
             
             if which_results == "main":
-                results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances, propertiesListEmpirical)
+                results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
             
                 for net_measure in network_measures:
                     dict_results[net_measure].append(results[net_measure])
@@ -629,11 +627,11 @@ def generate_human_vertex_comparison_results(which_results="main"):
         best_params = (best_eta_prob, best_eta_weights)
         for repet_ in range(number_of_repetitions):
             print(repet_, f"repet EDR")
-            model = connectome_models.generate_EDR_vertex_model(best_eta_prob, best_eta_weights, distances, idxes_vertex, n_vertices, n_edges_vertex_empirical, total_possible_connections, resampling_weights)
+            model = generate_EDR_vertex_model(best_eta_prob, best_eta_weights, distances, idxes_vertex, n_vertices, n_edges_vertex_empirical, total_possible_connections, resampling_weights)
             model_idxes = model[idxes_vertex]
             
             if which_results == "main":
-                results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances, propertiesListEmpirical)
+                results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
             
                 for net_measure in network_measures:
                     dict_results[net_measure].append(results[net_measure])
@@ -652,11 +650,11 @@ def generate_human_vertex_comparison_results(which_results="main"):
         best_params = 0
         for repet_ in range(number_of_repetitions):
             print(repet_, f"repet Random")
-            model = connectome_models.generate_random_vertex_model(n_vertices, total_possible_connections, n_edges_vertex_empirical, idxes_vertex, weighted=True)
+            model = generate_random_vertex_model(n_vertices, total_possible_connections, n_edges_vertex_empirical, idxes_vertex, weighted=True)
             model_idxes = model[idxes_vertex]
             
             if which_results == "main":
-                results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances, propertiesListEmpirical)
+                results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
             
                 for net_measure in network_measures:
                     dict_results[net_measure].append(results[net_measure])
@@ -712,10 +710,10 @@ def mainFunction():
 
     
     # 1. Generate the geometric eigenmodes
-    # generate_geometric_modes()
+    generate_geometric_modes()
 
     # 2. Optimize the GEM (explore parameters landscape)
-    optimize_and_save_human_high_resolution_results()
+    # optimize_and_save_human_high_resolution_results()
     # print()
 
 

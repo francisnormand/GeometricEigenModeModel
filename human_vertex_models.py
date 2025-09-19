@@ -92,7 +92,7 @@ def compute_and_update_results(results_dict, k_idx, network_measures, vertexMode
             results_dict[measure_][k_idx] = spearmanr(node_properties_model_dict[measure_], empirical_node_properties_dict[measure_])[0]
 
 
-def get_human_vertex_results(network_measures, vertexModelSC, vertexModelSC_thresholded_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances, propertiesListEmpirical):
+def get_human_vertex_results(network_measures, vertexModelSC, vertexModelSC_thresholded_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances):
 
     node_properties_model_dict = compute_node_properties(network_measures, vertexModelSC, distances)
 
@@ -143,11 +143,6 @@ def EDR_generate_and_save(path_data, task_id):
 
     from demo_high_resolution import get_human_vertex_parameters, get_human_high_res_surface_and_connectome, load_human_vertex_modes, get_human_vertex_EDR_parameters
 
-    if formulation == "GEM":
-        connectome_model_used = connectome_models.generate_high_res_GEM_humans
-    elif formulation == "LBO":
-        connectome_model_used = connectome_models.generate_high_res_LBO_humans
-
     human_vertex_parameters = get_human_vertex_parameters()
     r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, resampling_weights = human_vertex_parameters
 
@@ -162,7 +157,6 @@ def EDR_generate_and_save(path_data, task_id):
     distances = pdist(vertices)
 
     network_measures = ["degree", "true_positive_rate", "degreeBinary", "spearman_union_weights", "ranked_weights_strength", "clustering", "node connection distance"]
-    # distance_measures = ["ks_edge_distance", "ks_degree", "ks_clustering"]
     distance_measures = []
 
     print(f"target_density: {target_density}")
@@ -198,18 +192,15 @@ def EDR_generate_and_save(path_data, task_id):
         os.makedirs(path_base_save)
 
     ##################################### CHECKING IF ALREADY EXISTS
-    # exits = check_if_already_exists(network_measures, path_base_save, current_hypothesis)
-    # if exits == True:
-    #     print(exits, "exits")
-    #     return True #Skipping
+    exits = check_if_already_exists(network_measures, path_base_save, current_hypothesis)
+    if exits == True:
+        print(exits, "exits")
+        return True #Skipping
     ##################################### 
 
     results_dict = {network_metric:np.empty(len(eta_weights_array)) for network_metric in network_measures}
 
     for idx_eta_w, eta_w in enumerate(eta_weights_array):
-        # start_time = time.time()
-        # print(idx_eta_w, "idx_eta_w")
-        
         vertexModelSC = connectome_models.generate_EDR_vertex_model(eta_prob_connection, eta_w, distances, idxes_vertex, n_vertices, n_edges_vertex_empirical, total_possible_connections, resampling_weights)
 
         vertexModelSC_idxes = vertexModelSC[idxes_vertex]
@@ -222,6 +213,8 @@ def EDR_generate_and_save(path_data, task_id):
 
     for net_measure in results_dict.keys():
         np.save(path_base_save + f"/{net_measure}_{current_hypothesis}", results_dict[net_measure])
+
+    print(f"done and saved {formulation}")
 
 def generate_and_save_model_performance(path_data, r_s_id=None, formulation="GEM"):
 
@@ -271,9 +264,9 @@ def generate_and_save_model_performance(path_data, r_s_id=None, formulation="GEM
         os.makedirs(path_base_save)
 
     ##################################### CHECKING IF ALREADY EXISTS
-    # exists = check_if_already_exists(network_measures, path_base_save, current_hypothesis)
-    # if exists == True:
-    #     return True
+    exists = check_if_already_exists(network_measures, path_base_save, current_hypothesis)
+    if exists == True:
+        return True
     ##################################### 
     
     n_vertices = empirical_vertex_connectivity.shape[0]
@@ -310,6 +303,8 @@ def generate_and_save_model_performance(path_data, r_s_id=None, formulation="GEM
 
     for net_measure in results_dict.keys():
         np.save(path_base_save + f"/{net_measure}_{current_hypothesis}", results_dict[net_measure])
+
+    print(f"done and saved {formulation}")
         
 
 if __name__ == "__main__":
@@ -334,7 +329,9 @@ if __name__ == "__main__":
         path_data = "/home/fnormand/kg98/FrancisN/scripts/GitHub/GeometricEigenModeModel/data/human_high_res"
 
     if formulation is None:
+        # Manual input here instead of call from command line 
         formulation = "EDR"
+        # formulation = "GEM"
 
     generate_and_save_model_performance(path_data, r_s_id, formulation)
 
