@@ -13,7 +13,7 @@ TBF
 
 ### 2. Set up the conda environment
 
-The repository includes an `environment.yml` file to recreate the exact environment:
+The repository includes an `environment.yml` file to recreate the python environment used for the analyses:
 
 ```bash
 conda env create -f environment.yml
