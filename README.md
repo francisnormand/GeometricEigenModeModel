@@ -12,6 +12,8 @@ Code and data for the manuscript "Geometric constraints on the architecture of m
 
 Download the data from this OSF repository: https://osf.io/rz3hw/
 
+Each folder downloaded needs to be placed in the data/ folder.
+
 ### 2. Set up the conda environment
 
 The repository includes an `environment.yml` file to recreate the python environment used for the analyses:
