@@ -569,8 +569,8 @@ def generate_human_vertex_comparison_results(which_results="main"):
 
         dimension_files_geo = (len(r_s_values_list), len(k_range))
         # Loading the results from formulation_GEM.
-        directory = f"{cwd}/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation_GEM}"
-        heatmaps_dict, args_optimal = utilities.grab_human_vertex_heatmaps(optimization_metric_list, directory, network_measures, dimension_files_geo, r_s_values_list, formulation_GEM, target_density, connectome_type, fwhm)    
+        directory_exception = f"{cwd}/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation_GEM}"
+        heatmaps_dict, args_optimal = utilities.grab_human_vertex_heatmaps(optimization_metric_list, directory_exception, network_measures, dimension_files_geo, r_s_values_list, formulation_GEM, target_density, connectome_type, fwhm)    
         
         best_r_s = r_s_values_list[args_optimal[0][0]]
         best_k = k_range[args_optimal[1][0]]
@@ -679,9 +679,107 @@ def generate_human_vertex_comparison_results(which_results="main"):
         np.save(directory_save+"_best_params", np.array(best_params))
 
 
-def compare_human_vertex_models():
-    pass
+def visualize_human_vertex_cross_val():
 
+    which_results = "main"
+    cmap = fixed_get_parameters.get_colormap()
+
+    color_optimized = cmap(0.5)
+    color_not_optimized = color_optimized
+    alpha = 0.8
+
+    results_base_dir = f"{cwd}/data/results/human_high_resolution" #{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation_generate}"
+
+    formulation_GEM = "GEM"
+    formulation_LBO = "LBO"
+    formulation_permuted_evals = "permuted_eigenvalues_order"
+    formulation_EDR = "EDR"
+    formulation_Random = "Random"
+
+    list_of_models = [formulation_GEM, formulation_LBO, formulation_permuted_evals, formulation_EDR, formulation_Random]
+
+    human_vertex_parameters = get_human_vertex_parameters()
+    r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, resampling_weights = human_vertex_parameters
+
+    (surface, surface_name), cortex_mask_array, empirical_vertex_connectivity = get_human_high_res_surface_and_connectome(path_data, human_vertex_parameters)
+
+    k_range = np.array([k_ for k_ in range(2, 200)])
+
+    # network_measures = ["degreeBinary", "spearman_union_weights", "ranked_weights_strength"]
+    # network_measures = ["degree", "spearman_union_weights", "ranked_weights_strength"]
+    network_measures = ["node connection distance", "true_positive_rate", "clustering"]
+    
+    optimization_metric_list = ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]
+
+    opt_str = "_".join(optimization_metric_list)
+
+    # measure_colors = {
+    # measure: (color_optimized if measure in optimization_metric_list else color_not_optimized)
+    # for measure in network_measures
+    # }
+    measure_colors = {measure: color_optimized for measure in network_measures}
+    
+    exclude_models_by_measure = None
+
+    model_optimization_metrics = {
+    formulation_GEM: optimization_metric_list,
+    formulation_LBO: optimization_metric_list,
+    formulation_permuted_evals: optimization_metric_list,
+    formulation_EDR: optimization_metric_list,
+    formulation_Random:optimization_metric_list,
+    }
+
+    def load_results(models, measures, result_type):
+        all_data = []
+        for model in models:
+            print(model, "model")
+            
+            subdir = os.path.join(
+                results_base_dir, connectome_type,
+                f"resampled_weights_{resampling_weights}",
+                f"formulation_{model}", f"/{opt_metric_str}"
+            )
+            
+            
+            filename = f"_{which_results}_optimized_results.npy"
+            filepath = os.path.join(subdir, filename)
+
+            if not os.path.exists(filepath):
+                print(f"Skipping missing file: {filepath}")
+                continue
+
+            results_dict = np.load(filepath, allow_pickle=True).item()
+            if result_type != "cross_val_best_parameters":
+                for measure in measures:
+                    print(measure, "measure")
+                    if measure not in results_dict:
+                        continue
+                    dum_list = []
+                    for val in results_dict[measure]:
+                        all_data.append({
+                            "model": model,
+                            "measure": measure,
+                            "value": val
+                        })
+                        dum_list.append(val)
+                        print(np.mean(dum_list), "mean score")
+            else:
+                all_data.append({
+                            "model": model,
+                            "value": list(results_dict.values())
+                        })
+
+        return pd.DataFrame(all_data)
+
+    df_net = load_results(list_of_models, network_measures, "cross_val_results")
+    utilities.plot_all_measures_together(df_net, "Network Measure", measure_colors, exclude_models_by_measure, different_opt_metrics=True, model_optimization_metrics=model_optimization_metrics, color_optimized=color_optimized, color_not_optimized=color_not_optimized, alpha=alpha)
+    plt.show()
+
+def compare_human_vertex_models(which_results="main"):
+    
+    if which_results == "main":
+        visualize_human_vertex_cross_val()
+    
 
 # Current working director
 cwd = os.getcwd()
@@ -699,7 +797,6 @@ env_path = conda_prefix.split("/conda/")[0]
 conda_env_name = os.environ.get("CONDA_DEFAULT_ENV")
 # print(conda_env_name)
 
-# sys.exit()
 
 def mainFunction():
     """
@@ -708,26 +805,26 @@ def mainFunction():
     These functions have to be run sequentially.
     """
 
-    
     # 1. Generate the geometric eigenmodes
-    generate_geometric_modes()
+    # generate_geometric_modes()
 
     # 2. Optimize the GEM (explore parameters landscape)
     # optimize_and_save_human_high_resolution_results()
     # print()
 
-
     #3. Visualize performance
     # visualize_GEM_human_vertex_results()
 
-    #4. Generate benchmark models
-    # results = "main"
+
+    results = "main"
     # results = "modularity"
     # results = "spectral"
+    
+    #4. Generate benchmark models
     # generate_human_vertex_comparison_results(which_results=results)
 
     #5. Compare GEM performance with other models
-    # visualize_human_vertex_models_comparison()
+    compare_human_vertex_models(results)
 
 
 if __name__ == "__main__":

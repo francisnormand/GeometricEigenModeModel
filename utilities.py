@@ -814,6 +814,7 @@ def calc_surface_eigenmodes(surface_input_filename, mask_input_filename, output_
             mask = nib.load(mask_input_filename).darrays[0].data
     
     # create temporary suface based on mask
+    
     surface_cut = mesh.mesh_operations.mask_points(surface_orig, mask)
 
     if save_cut == 1:
@@ -946,3 +947,68 @@ def getDictOfNVI(labels_dict_empirical, labels_dict_model):
         nvi_dict[key_com], _ = bct.partition_distance(labels_empirical, labels_model_)
     
     return nvi_dict
+
+def plot_all_measures_together(df, title_prefix, measure_colors, exclude_models_by_measure=None, different_opt_metrics=False, model_optimization_metrics=None, color_optimized=None, color_not_optimized=None, alpha=1):
+    measures = df["measure"].unique()
+
+    n_measures = len(measures)
+    ncols = n_measures
+    import math
+    import numpy as np
+    nrows = math.ceil(n_measures / ncols)
+
+    fig, axes = plt.subplots(nrows, ncols, figsize=(6.2 * ncols, 6 * nrows), sharey=False)
+    axes = axes.flatten()
+
+    for i, measure in enumerate(measures):
+        ax = axes[i]
+        df_sub = df[df["measure"] == measure]
+
+        if exclude_models_by_measure and measure in exclude_models_by_measure:
+            excluded_models = exclude_models_by_measure[measure]
+            df_sub = df_sub[~df_sub["model"].isin(excluded_models)]
+
+        color = measure_colors.get(measure, "gray")
+        unique_models = df_sub["model"].unique()
+
+        if different_opt_metrics == False:
+            palette = {model: color for model in unique_models}
+
+        else:
+            palette = {
+                model: get_model_color_based_on_optimization_metric(
+                    model,
+                    measure,
+                    model_optimization_metrics,
+                    color_optimized,
+                    color_not_optimized
+                )
+                for model in unique_models
+            }
+
+        sns.violinplot(
+            data=df_sub,
+            x="model",
+            y="value",
+            palette=palette,
+            saturation=1,
+            alpha=alpha,
+            ax=ax
+        )
+
+
+        ax.set_title(f"{measure}")
+        ax.set_xlabel("")
+
+        y_min = df_sub["value"].min()
+        y_max = df_sub["value"].max()
+        y_ticks = np.linspace(y_min, y_max, 4)
+        ax.set_yticks(y_ticks)
+        ax.set_ylabel("")
+        ax.set_yticklabels([f"{tick:.2f}" for tick in y_ticks], fontsize=24)
+
+    for j in range(i + 1, len(axes)):
+        axes[j].axis("off")
+
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.93)
