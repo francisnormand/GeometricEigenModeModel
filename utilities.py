@@ -18,6 +18,7 @@ from sklearn.cluster import KMeans
 import bct
 import networkx as nx
 from scipy.sparse.linalg import eigsh
+import seaborn as sns
 
 
 def resample_matrix(template, noise='gaussian', seed=None, rand_params=[0.5, 0.1], 
@@ -948,6 +949,13 @@ def getDictOfNVI(labels_dict_empirical, labels_dict_model):
     
     return nvi_dict
 
+def get_model_color_based_on_optimization_metric(model, measure, model_optimization_metrics, color_optimized, color_not_optimized):
+    optimized_metrics = model_optimization_metrics.get(model, [])
+    if measure in optimized_metrics:
+        return color_optimized
+    else:
+        return color_not_optimized
+
 def plot_all_measures_together(df, title_prefix, measure_colors, exclude_models_by_measure=None, different_opt_metrics=False, model_optimization_metrics=None, color_optimized=None, color_not_optimized=None, alpha=1):
     measures = df["measure"].unique()
 
@@ -1012,3 +1020,55 @@ def plot_all_measures_together(df, title_prefix, measure_colors, exclude_models_
 
     plt.tight_layout()
     plt.subplots_adjust(top=0.93)
+
+
+def linePlotModularity(list_of_number_of_communities, list_of_methods, results_dict, colors=None, ylabel=None):
+    legend_handles = []
+    # plt.figure(figsize=(6, 5), dpi=200)
+    fig, ax = plt.subplots(figsize=(5, 6), dpi=200)
+
+    for i_m, method in enumerate(list_of_methods):
+        
+        results_method = results_dict[method]
+        means = {key: np.mean(value) for key, value in results_method.items()}
+        std_devs = {key: np.std(value) for key, value in results_method.items()}
+        
+        x_values = sorted(means.keys())
+        y_values = [means[key] for key in x_values]
+        error_bars = [std_devs[key] for key in x_values]
+
+        if colors is not None:
+            color = colors[i_m]
+        else:
+            color = "darkblue"
+        # handle = ax.errorbar(list_of_number_of_communities, y_values, yerr=error_bars, color=color, label=method, capsize=2,  marker='o', linestyle='-', alpha=0.85, linewidth=1, markersize=5, markerfacecolor=color, markeredgecolor="white", markeredgewidth=0.8)
+        handle = ax.scatter(list_of_number_of_communities, y_values, color=color, label=method,  marker='o', linestyle='-', alpha=0.85, edgecolors="lightgray", linewidth=1)
+        legend_handles.append(handle)
+        
+        ax.plot(list_of_number_of_communities, y_values, color=color, label=method,  marker='', linestyle='-', alpha=0.85)
+
+        ax.fill_between(
+        x_values, 
+        np.array(y_values) - np.array(error_bars), 
+        np.array(y_values) + np.array(error_bars),  
+        color=color, alpha=0.2  
+    )
+
+    ax.spines["left"].set_linewidth(1.2)
+    ax.spines["bottom"].set_linewidth(1.2)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    ax.set_ylabel(f"{ylabel}")
+
+    ax.tick_params(axis="both", labelsize=12)
+
+    plt.tight_layout()
+
+    legend_fig, legend_ax = plt.subplots(figsize=(5, 5), dpi=200)
+    legend_ax.axis("off")  
+
+    legend = legend_ax.legend(
+        # handles=legend_handles, labels=[method.capitalize() for method in list_of_methods], fontsize=12, loc="center"
+        handles=legend_handles, labels=[method for method in list_of_methods], fontsize=12, loc="center"
+    )

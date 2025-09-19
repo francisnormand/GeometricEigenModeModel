@@ -218,6 +218,7 @@ def generate_geometric_modes():
     print()
     print("geometric modes were saved")
 
+
 def optimize_and_save_human_high_resolution_results():
     """
     Run large-scale optimization of the human high-resolution model and save results.
@@ -234,7 +235,6 @@ def optimize_and_save_human_high_resolution_results():
     - For EDR, two chunks of jobs have to be sent, because there are 1000 jobs in total 
     """
 
-    
     use_job_array = True 
     # use_job_array = False
 
@@ -407,6 +407,25 @@ def get_human_vertex_parameters():
 
     r_s_values_list = np.linspace(1, 20, 50)
     
+    return r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, resampling_weights
+
+def get_human_parcellated_parameters():
+    """
+    Grab parameters associated with the empirical connectome and GEM.
+    """
+
+    connectome_type = "smoothed"
+    # connectome_type = "unsmoothed"
+
+    fwhm = 8
+    target_density = 0.046
+    resampling_weights=False
+
+    cortex_mask = True
+    # cortex_mask = False
+
+    r_s_values_list = np.linspace(1, 20, 50)
+
     return r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, resampling_weights
 
 def get_human_vertex_EDR_parameters():
@@ -680,7 +699,7 @@ def generate_human_vertex_comparison_results(which_results="main"):
         np.save(directory_save+ "/best_params", np.array(best_params))
 
 
-def visualize_human_vertex_model_comparison():
+def visualize_human_vertex_model_main_results_comparison():
 
     which_results = "main"
     cmap = utilities.get_colormap()
@@ -688,8 +707,6 @@ def visualize_human_vertex_model_comparison():
     color_optimized = cmap(0.5)
     color_not_optimized = color_optimized
     alpha = 0.8
-
-    results_base_dir = f"{cwd}/data/results/human_high_resolution" #{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation_generate}"
 
     formulation_GEM = "GEM"
     formulation_LBO = "LBO"
@@ -706,9 +723,10 @@ def visualize_human_vertex_model_comparison():
 
     k_range = np.array([k_ for k_ in range(2, 200)])
 
-    # network_measures = ["degreeBinary", "spearman_union_weights", "ranked_weights_strength"]
+    # Network mesasures that will be displayed
+    network_measures = ["degreeBinary", "spearman_union_weights", "ranked_weights_strength"]
     # network_measures = ["degree", "spearman_union_weights", "ranked_weights_strength"]
-    network_measures = ["node connection distance", "true_positive_rate", "clustering"]
+    # network_measures = ["node connection distance", "true_positive_rate", "clustering"]
     
     optimization_metric_list = ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]
 
@@ -737,11 +755,7 @@ def visualize_human_vertex_model_comparison():
         for model in models:
             print(model, "model")
             
-            subdir = os.path.join(
-                results_base_dir, connectome_type,
-                f"resampled_weights_{resampling_weights}",
-                f"formulation_{model}", f"/optimized_for_{opt_metric_str}"
-            )
+            subdir = f"{cwd}/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{model}/optimized_for_{opt_metric_str}"
             
             filename = f"{which_results}_optimized_results.npy"
             filepath = os.path.join(subdir, filename)
@@ -764,7 +778,7 @@ def visualize_human_vertex_model_comparison():
                             "value": val
                         })
                         dum_list.append(val)
-                        print(np.mean(dum_list), "mean score")
+                        # print(np.mean(dum_list), "mean score")
             else:
                 all_data.append({
                             "model": model,
@@ -777,10 +791,64 @@ def visualize_human_vertex_model_comparison():
     utilities.plot_all_measures_together(df_net, "Network Measure", measure_colors, exclude_models_by_measure, different_opt_metrics=True, model_optimization_metrics=model_optimization_metrics, color_optimized=color_optimized, color_not_optimized=color_not_optimized, alpha=alpha)
     plt.show()
 
+def visualize_human_vertex_model_modularity_comparison():
+
+    which_results = "modularity"
+    cmap = utilities.get_colormap()
+
+    color_optimized = cmap(0.5)
+    color_not_optimized = color_optimized
+    alpha = 0.8
+
+    formulation_GEM = "GEM"
+    formulation_LBO = "LBO"
+    formulation_permuted_evals = "permuted_eigenvalues_order"
+    formulation_EDR = "EDR"
+    formulation_Random = "Random"
+
+    list_of_models = [formulation_GEM, formulation_LBO, formulation_permuted_evals, formulation_EDR, formulation_Random]
+
+    human_vertex_parameters = get_human_vertex_parameters()
+    r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, resampling_weights = human_vertex_parameters
+
+    (surface, surface_name), cortex_mask_array, empirical_vertex_connectivity = get_human_high_res_surface_and_connectome(path_data, human_vertex_parameters)
+
+    k_range = np.array([k_ for k_ in range(2, 200)])
+
+    representation_modularity = "binary"
+
+    colors = ["darkgreen", "palegreen", "mediumseagreen", "rebeccapurple", "indianred"]
+
+    optimization_metric_list = ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]
+    opt_metric_str = "_".join(optimization_metric_list)
+
+    legend_handles = []
+
+    results_dict = {}
+
+    list_of_number_of_communities = [3, 4, 5 , 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+
+    for i_m, model in enumerate(list_of_models):
+
+        results_base_dir = f"{cwd}/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{model}/optimized_for_{opt_metric_str}"
+        results_model_ = np.load(results_base_dir + f"/{which_results}_optimized_results.npy", allow_pickle=True).item()
+
+        results_dict[model] = results_model_
+        y_mean = np.array([np.mean(results_model_[key]) for key in list_of_number_of_communities])
+
+        auc = np.trapz(y_mean, np.array(list_of_number_of_communities))
+        print(auc, f"AUC for {model}")
+    
+    utilities.linePlotModularity(list_of_number_of_communities, list_of_models, results_dict, colors, "NVI")
+
+    plt.show()
+
 def compare_human_vertex_models(which_results="main"):
     
     if which_results == "main":
-        visualize_human_vertex_model_comparison()
+        visualize_human_vertex_model_main_results_comparison()
+    elif which_results == "modularity":
+        visualize_human_vertex_model_modularity_comparison()
     
 
 # Current working director
@@ -818,15 +886,15 @@ def mainFunction():
     # visualize_GEM_human_vertex_results()
 
 
-    results = "main"
-    # results = "modularity"
+    # results = "main"
+    results = "modularity"
     # results = "spectral"
     
     #4. Generate benchmark models
-    generate_human_vertex_comparison_results(which_results=results)
+    # generate_human_vertex_comparison_results(which_results=results)
 
     #5. Compare GEM performance with other models
-    # compare_human_vertex_models(which_results=results)
+    compare_human_vertex_models(which_results=results)
 
 
 if __name__ == "__main__":
