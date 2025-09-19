@@ -8,7 +8,11 @@ Code and data for the manuscript "Geometric constraints on the architecture of m
 
 ## Getting Started
 
-### 1. Download the repository
+### 1. Download this repository
+
+Simply download this Github repository
+
+### 2. Download the data
 
 Download the data from this OSF repository: https://osf.io/rz3hw/
 
