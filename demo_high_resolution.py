@@ -512,6 +512,8 @@ def generate_human_vertex_comparison_results(which_results="main"):
         dict_results = {net_measure:[] for net_measure in network_measures}
     elif which_results == "modularity":
         dict_results = {n_com:[] for n_com in list_of_number_of_communities}
+    elif which_results == "spectral":
+        list_results = []
 
     total_possible_connections = len(idxes_vertex[0])
 
@@ -527,6 +529,9 @@ def generate_human_vertex_comparison_results(which_results="main"):
         empirical_partition_dict = utilities.efficient_newman_spectral_communities(G_empirical, list_of_number_of_communities)
         empirical_labels_dict = utilities.labelsDict(G_empirical, empirical_partition_dict)
         empirical_partitions_set_dict = utilities.getDictOfPartitionsSet(empirical_partition_dict)
+    
+    elif which_results == "spectral":
+        empirical_spectrum = utilities.compute_eigenspectrum(empirical_connectome_binary)
 
     directory = f"{cwd}/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation_generate}"
 
@@ -556,6 +561,12 @@ def generate_human_vertex_comparison_results(which_results="main"):
             nvi_dict = utilities.getDictOfNVI(empirical_labels_dict, model_labels_dict)
             for n_com  in nvi_dict.keys():
                 dict_results[n_com].append(nvi_dict[n_com])
+
+        elif which_results == "spectral":
+            model = (model > 0).astype(int)
+            model_spectrum = utilities.compute_eigenspectrum(model)
+            spectral_distance = utilities.compute_spectral_distance(empirical_spectrum, model_spectrum)
+            list_results.append(spectral_distance[0])
         
 
     elif formulation_generate == formulation_LBO:
@@ -583,6 +594,12 @@ def generate_human_vertex_comparison_results(which_results="main"):
             nvi_dict = utilities.getDictOfNVI(empirical_labels_dict, model_labels_dict)
             for n_com  in nvi_dict.keys():
                 dict_results[n_com].append(nvi_dict[n_com])
+
+        elif which_results == "spectral":
+            model = (model > 0).astype(int)
+            model_spectrum = utilities.compute_eigenspectrum(model)
+            spectral_distance = utilities.compute_spectral_distance(empirical_spectrum, model_spectrum)
+            list_results.append(spectral_distance[0])
 
 
     elif formulation_generate == formulation_permuted_evals:
@@ -625,6 +642,12 @@ def generate_human_vertex_comparison_results(which_results="main"):
                 for n_com  in nvi_dict.keys():
                     dict_results[n_com].append(nvi_dict[n_com])
 
+            elif which_results == "spectral":
+                model = (model > 0).astype(int)
+                model_spectrum = utilities.compute_eigenspectrum(model)
+                spectral_distance = utilities.compute_spectral_distance(empirical_spectrum, model_spectrum)
+                list_results.append(spectral_distance[0])
+
 
     elif formulation_generate == formulation_EDR:
         eta_prob_connection_array, eta_weights_array = get_human_vertex_EDR_parameters()
@@ -665,6 +688,12 @@ def generate_human_vertex_comparison_results(which_results="main"):
                 for n_com  in nvi_dict.keys():
                     dict_results[n_com].append(nvi_dict[n_com])
 
+            elif which_results == "spectral":
+                model = (model > 0).astype(int)
+                model_spectrum = utilities.compute_eigenspectrum(model)
+                spectral_distance = utilities.compute_spectral_distance(empirical_spectrum, model_spectrum)
+                list_results.append(spectral_distance[0])
+
     elif formulation_generate == formulation_Random:
         number_of_repetitions = 100
         best_params = 0
@@ -688,12 +717,21 @@ def generate_human_vertex_comparison_results(which_results="main"):
                 for n_com  in nvi_dict.keys():
                     dict_results[n_com].append(nvi_dict[n_com])
 
+            elif which_results == "spectral":
+                model = (model > 0).astype(int)
+                model_spectrum = utilities.compute_eigenspectrum(model)
+                spectral_distance = utilities.compute_spectral_distance(empirical_spectrum, model_spectrum)
+                list_results.append(spectral_distance[0])
+
 
     directory_save = directory + f"/optimized_for_{opt_metric_str}"
     if not os.path.exists(directory_save):
         os.makedirs(directory_save)
     
-    np.save(directory_save+ f"/{which_results}_optimized_results", dict_results, allow_pickle=True)
+    if which_results == "spectral":
+        np.save(directory_save+ f"/{which_results}_optimized_results", list_results)
+    else:
+        np.save(directory_save+ f"/{which_results}_optimized_results", dict_results, allow_pickle=True)
 
     if which_results == "main":
         np.save(directory_save+ "/best_params", np.array(best_params))
@@ -887,11 +925,11 @@ def mainFunction():
 
 
     # results = "main"
-    results = "modularity"
-    # results = "spectral"
+    # results = "modularity"
+    results = "spectral"
     
     #4. Generate benchmark models
-    # generate_human_vertex_comparison_results(which_results=results)
+    generate_human_vertex_comparison_results(which_results=results)
 
     #5. Compare GEM performance with other models
     compare_human_vertex_models(which_results=results)

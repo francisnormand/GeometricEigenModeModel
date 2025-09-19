@@ -19,6 +19,7 @@ import bct
 import networkx as nx
 from scipy.sparse.linalg import eigsh
 import seaborn as sns
+from scipy.linalg import eig
 
 
 def resample_matrix(template, noise='gaussian', seed=None, rand_params=[0.5, 0.1], 
@@ -948,6 +949,43 @@ def getDictOfNVI(labels_dict_empirical, labels_dict_model):
         nvi_dict[key_com], _ = bct.partition_distance(labels_empirical, labels_model_)
     
     return nvi_dict
+
+
+#### Some code taken from: Suarez from https://github.com/netneurolab/suarez_connectometaxonomy/blob/main/scripts/1_spectral_%26_topological_feats/eigenfunctions.py
+
+def eigen_spectrum(M):
+    
+    return np.abs(eig(M, left=False, right=False))
+
+def norm_laplacian(A, degree='out'):
+
+    D = np.zeros_like(A)
+
+    np.fill_diagonal(D, np.sum(A, axis=1))
+
+    D_inv = 1.0 / D
+    D_inv[np.isinf(D_inv)] = 0
+
+    I = np.identity(len(D), dtype='int')
+
+    L = I - D_inv @ A 
+    
+    return L
+
+def compute_eigenspectrum(A, spectral_measure="normalized_laplacian"):
+
+    if spectral_measure == "normalized_laplacian":
+        L = norm_laplacian(A)
+        eigs = eigen_spectrum(L)
+    else:
+        print("not implemented")
+        sys.exit()
+
+    return eigs
+
+def compute_spectral_distance(spectra_1, spectra_2, metric="cosine"):
+    array_spectras = np.vstack((spectra_1, spectra_2))
+    return pdist(array_spectras, metric=metric)
 
 def get_model_color_based_on_optimization_metric(model, measure, model_optimization_metrics, color_optimized, color_not_optimized):
     optimized_metrics = model_optimization_metrics.get(model, [])
