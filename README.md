@@ -1,4 +1,4 @@
-# Geometric Eigen Mode Model
+# Geometric Eigenmode Model
 
 <p align="center">
   <img src="cover.jpeg" alt="cover.jpeg" width="700">
