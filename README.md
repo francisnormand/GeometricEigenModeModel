@@ -28,5 +28,5 @@ The repository includes an `environment.yml` file to recreate the python environ
 
 ```bash
 conda env create -f environment.yml
-conda activate geom-eigen-model
+conda activate geom_eigen_model
 
