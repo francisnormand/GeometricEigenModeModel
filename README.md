@@ -20,7 +20,7 @@ Simply download this Github repository
 
 Download the data from this OSF repository: https://osf.io/rz3hw/
 
-Each folder downloaded needs to be placed in the data/ folder.
+Each folder downloaded from OSF needs to be placed in the "data/" folder structure of this GitHub repo.
 
 ### 2. Set up the conda environment
 
