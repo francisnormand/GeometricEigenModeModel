@@ -24,9 +24,12 @@ Each folder downloaded from OSF needs to be placed in the "data/" folder structu
 
 ### 2. Set up the conda environment
 
-The repository includes an `environment.yml` file to recreate the python environment used for the analyses:
+The repository includes an `environment.yml` file to recreate the python environment used for the analyses. The (hacky) last line
+ensures that multiple jobs can be run at the same time within the environment.
 
 ```bash
 conda env create -f environment.yml
 conda activate geom_eigen_model
+conda install -n geom_eigen_model numpy=1.26.* scipy=1.13.* numba=0.60.* mkl mkl-service -c defaults
+
 

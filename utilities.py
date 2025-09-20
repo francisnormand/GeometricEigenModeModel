@@ -963,8 +963,10 @@ def norm_laplacian(A, degree='out'):
 
     np.fill_diagonal(D, np.sum(A, axis=1))
 
-    D_inv = 1.0 / D
-    D_inv[np.isinf(D_inv)] = 0
+    # D_inv = 1.0 / D
+    # D_inv[np.isinf(D_inv)] = 0
+    
+    D_inv = np.divide(1.0, D, out=np.zeros_like(D, dtype=float), where=D!=0)
 
     I = np.identity(len(D), dtype='int')
 

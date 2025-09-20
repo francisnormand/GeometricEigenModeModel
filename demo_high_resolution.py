@@ -460,9 +460,9 @@ def generate_human_vertex_comparison_results(which_results="main"):
     ############################################################
     # formulation_generate = formulation_GEM
     # formulation_generate = formulation_LBO
-    # formulation_generate = formulation_permuted_evals
+    formulation_generate = formulation_permuted_evals
     # formulation_generate = formulation_EDR
-    formulation_generate = formulation_Random
+    # formulation_generate = formulation_Random
     ############################################################
 
     lump = False
