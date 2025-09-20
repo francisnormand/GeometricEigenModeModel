@@ -1,7 +1,7 @@
 # Geometric Eigenmode Model
 
 <p align="center">
-  <img src="cover.jpeg" alt="cover.jpeg" width="700">
+  <img src="data/cover.jpeg" alt="data/cover.jpeg" width="700">
 </p>
 
 Code and data for the manuscript "Geometric constraints on the architecture of mammalian cortical connectomes
