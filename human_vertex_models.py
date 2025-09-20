@@ -11,6 +11,7 @@ import connectome_models
 import utilities
 import time
 
+cwd = os.getcwd()
 
 def compute_true_positive_rate(vertexSpaceSC_thresholded_binary_idxes, idxes_edges_empirical):
     return len(np.where(vertexSpaceSC_thresholded_binary_idxes[idxes_edges_empirical] != 0)[0])/len(idxes_edges_empirical)
@@ -187,7 +188,7 @@ def EDR_generate_and_save(path_data, task_id):
 
     print(f"current_hypothesis :{current_hypothesis}")
 
-    path_base_save = f"/home/fnormand/kg98/FrancisN/scripts/GitHub/GeometricEigenModeModel/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation}"
+    path_base_save = f"/{cwd}/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation}"
     if not os.path.exists(path_base_save):
         os.makedirs(path_base_save)
 
@@ -259,7 +260,7 @@ def generate_and_save_model_performance(path_data, r_s_id=None, formulation="GEM
     print(f"r_s: {r_s}")
     print("formulation:", formulation)
     
-    path_base_save = f"/home/fnormand/kg98/FrancisN/scripts/GitHub/GeometricEigenModeModel/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation}"
+    path_base_save = f"/{cwd}/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation}"
     if not os.path.exists(path_base_save):
         os.makedirs(path_base_save)
 
@@ -326,7 +327,7 @@ if __name__ == "__main__":
         r_s_id = int(r_s_id)
 
     if path_data is None:
-        path_data = "/home/fnormand/kg98/FrancisN/scripts/GitHub/GeometricEigenModeModel/data/human_high_res"
+        path_data = f"/{cwd}/data/human_high_res"
 
     if formulation is None:
         # Manual input here instead of call from command line 

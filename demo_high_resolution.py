@@ -914,7 +914,7 @@ def mainFunction():
     """
 
     # 1. Generate the geometric eigenmodes
-    # generate_geometric_modes()
+    generate_geometric_modes()
 
     # 2. Optimize the GEM (explore parameters landscape)
     # optimize_and_save_human_high_resolution_results()
@@ -926,13 +926,13 @@ def mainFunction():
 
     # results = "main"
     # results = "modularity"
-    results = "spectral"
+    # results = "spectral"
     
     #4. Generate benchmark models
-    generate_human_vertex_comparison_results(which_results=results)
+    # generate_human_vertex_comparison_results(which_results=results)
 
     #5. Compare GEM performance with other models
-    compare_human_vertex_models(which_results=results)
+    # compare_human_vertex_models(which_results=results)
 
 
 if __name__ == "__main__":
