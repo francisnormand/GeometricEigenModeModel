@@ -9,5 +9,6 @@ data/parcellations/
 data/results/
 data/surfaces/
 data/human_high_res/
+data/human_parcellated/
 slurm_output/
 

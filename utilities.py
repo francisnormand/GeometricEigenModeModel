@@ -92,7 +92,7 @@ def resample_matrix(template, noise='gaussian', seed=None, rand_params=[0.5, 0.1
     return spatial_noise
 
 
-def applyThresholdToMatchDensities(vertexSpaceSC, nEdgesVertexSpace, idxes):
+def apply_threshold_to_match_densities(vertexSpaceSC, nEdgesVertexSpace, idxes):
 
     vertexSpaceSC_thresholded = np.zeros((vertexSpaceSC.shape[0],vertexSpaceSC.shape[0]))
     vertexSpaceSC_idxes = vertexSpaceSC[idxes]
@@ -124,18 +124,37 @@ def get_custom_colormap(top_cmap=0.5):
 
     return custom_cmap
 
-def get_human_template_surface(path, highrez=False):
+def get_human_template_surface(path_base_data):
     extension = "L.midthickness.5k.surf.vtk"
     fullpath = path+f"/{extension}"
     return lapy.TriaMesh.read_vtk(fullpath), fullpath
 
-def get_human_cortex_mask(path, highrez=False):
+def get_human_cortex_mask(path):
     extension = "cortex_mask_L.midthickness.5k.surf"
     cortex_mask = np.loadtxt(path+f"/{extension}")
     return cortex_mask.astype(int)
 
-def get_human_parcellated_data(data_source, parcellation):
-    pass
+
+def get_human_parcellated_cortex_mask(path, number_of_parcels, surface_name, mean_or_sum):
+    cortex_mask = np.load(path + f"_cortex_mask_to_SC{number_of_parcels}.npy")
+    return cortex_mask.astype(int)
+
+
+def get_parcellated_human_centroids(path):
+    path_base_parcellations = "/home/fnormand/kg98_scratch/FrancisN/data/atlases/human_atlases/parcellations"
+
+    extension_centroids = "Schaefer2018_{}Parcels_17Networks_order_FSLMNI152_2mm.Centroid_RAS.csv".format(number_of_parcels)
+    path_centroids = path_base_parcellations + "/" + extension_centroids
+    
+    centroids  = np.loadtxt(path_centroids, delimiter=",", dtype=str)
+    centroids = centroids[1:, 2:]
+    centroids = np.asarray(centroids, dtype=int)
+    L_hemi_idx = int(number_of_parcels/2)
+    centroids = centroids[0:L_hemi_idx, :]
+    print(centroids.shape, "centroids shape")
+    distances = pdist(centroids)
+
+    return distances, centroids
 
 
 
@@ -322,7 +341,7 @@ def getAnimalEmpiricalConnectome(model_parameters_and_variables, representation=
 
     if target_density != 1:
         n_edges_empirical = int(target_density * len(idxes_parcel[0]))
-        empirical_connectome = applyThresholdToMatchDensities(empirical_connectome, n_edges_empirical, idxes_parcel)
+        empirical_connectome = apply_threshold_to_match_densities(empirical_connectome, n_edges_empirical, idxes_parcel)
 
     empirical_connectome /= np.max(empirical_connectome)
 
@@ -336,36 +355,23 @@ def getAnimalEmpiricalConnectome(model_parameters_and_variables, representation=
 
     return empirical_connectome, n_edges_empirical_parcel
 
-def getHumanEmpiricalParcellatedConnectome(model_parameters_and_variables, representation="weighted"):
+def get_human_empirical_parcellated_connectome(path, target_density=0.1, number_of_parcels=300, connectome_type="smoothed"):
 
-    target_density = model_parameters_and_variables['target_density']
-    connectome_type = model_parameters_and_variables['connectome_type']
-    number_of_parcels = model_parameters_and_variables['number_of_parcels']
-    connectome_type =  model_parameters_and_variables['connectome_type']
-    connectome_origin = model_parameters_and_variables['connectome_origin']
-
-    path_base_connectome = f"/fs03/kg98/FrancisN/connectomes/{connectome_origin}"
-    
     if connectome_type == "smoothed":
-        fwhm = model_parameters_and_variables['fwhm']
-        extension_connectome = f"from_32k_raw_template_smooth_fwhm={fwhm}_Schaefer{number_of_parcels}_connectome.npy"
+        extension_connectome = f"from_32k_raw_template_smooth_fwhm=8_Schaefer{number_of_parcels}_connectome.npy"
 
     elif connectome_type == "unsmoothed":
         extension_connectome = f"from_32k_raw_template_connectome_Schaefer{number_of_parcels}.npy"
   
-    empirical_parcel_connectivity = np.load(path_base_connectome + "/" + extension_connectome)
-    n_parcellations = empirical_parcel_connectivity.shape[0]
-    idxes_parcels = np.triu_indices(n_parcellations, k=1)
+    empirical_parcel_connectivity = np.load(path + "/" + extension_connectome)
+    idxes_parcels = np.triu_indices(empirical_parcel_connectivity.shape[0], k=1)
 
     n_edges_threshold = int(target_density * len(idxes_parcels[0]))
-    empirical_parcel_connectivity = applyThresholdToMatchDensities(empirical_parcel_connectivity, n_edges_threshold, idxes_parcels)
+    empirical_parcel_connectivity = apply_threshold_to_match_densities(empirical_parcel_connectivity, n_edges_threshold, idxes_parcels)
    
     np.fill_diagonal(empirical_parcel_connectivity, 0)
 
     empirical_parcel_connectivity /= np.max(empirical_parcel_connectivity)
-
-    if representation == "binary":
-        empirical_parcel_connectivity[empirical_parcel_connectivity != 0] = 1
 
     n_edges_empirical_parcel = len(np.nonzero(empirical_parcel_connectivity[idxes_parcels])[0])
 
