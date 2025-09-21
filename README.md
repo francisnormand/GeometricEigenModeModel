@@ -24,8 +24,11 @@ Each folder downloaded from OSF needs to be placed in the "data/" folder structu
 
 ### 2. Set up the conda environment
 
-The repository includes an `environment.yml` file to recreate the python environment used for the analyses. The (hacky) last line
-ensures that multiple jobs can be run at the same time within the environmen (SEEM TO BE ONLY NECESSARY ON LINUX BECAUS IT WORKS WITHOUT IT ON MAC).
+The repository includes an `environment.yml` file to recreate the python environment used for the analyses. 
+
+The (hacky) last line ensures that multiple jobs can be run at the same time within the environment (on Massive).
+
+(LAST LINE SEEM TO BE ONLY NECESSARY ON LINUX BECAUSE IT WORKS WITHOUT IT ON MAC)
 
 ```bash
 conda env create -f environment.yml

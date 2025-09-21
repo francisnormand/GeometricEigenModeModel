@@ -881,12 +881,68 @@ def visualize_human_vertex_model_modularity_comparison():
 
     plt.show()
 
+def visualize_human_vertex_model_spectral_distance_comparison():
+
+    which_results = "spectral"
+    # cmap = utilities.get_colormap()
+
+    alpha = 0.8
+
+    formulation_GEM = "GEM"
+    formulation_LBO = "LBO"
+    formulation_permuted_evals = "permuted_eigenvalues_order"
+    formulation_EDR = "EDR"
+    formulation_Random = "Random"
+
+    list_of_models = [formulation_GEM, formulation_LBO, formulation_permuted_evals, formulation_EDR, formulation_Random]
+
+    human_vertex_parameters = get_human_vertex_parameters()
+    r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, resampling_weights = human_vertex_parameters
+
+    (surface, surface_name), cortex_mask_array, empirical_vertex_connectivity = get_human_high_res_surface_and_connectome(path_data, human_vertex_parameters)
+
+    k_range = np.array([k_ for k_ in range(2, 200)])
+
+    representation_modularity = "binary"
+
+    network_measures = ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]
+    optimization_metric_list = ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]
+
+    opt_metric_str = "_".join(optimization_metric_list)
+    
+    colors_list = ["darkgreen", "steelblue", "slateblue", "rebeccapurple", "indianred"]
+
+    def load_results(models):
+        all_data = []
+        for model in models:
+            print(model, "model")
+
+            results_base_dir = f"{cwd}/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{model}/optimized_for_{opt_metric_str}"
+            filepath = results_base_dir + f"/{which_results}_optimized_results.npy"
+            
+            if not os.path.exists(filepath):
+                print(f"Skipping missing file: {filepath}")
+                sys.exit()
+
+            results_model_ = np.load(filepath)
+            all_data.append({"model": model, "value": results_model_})
+
+        return pd.DataFrame(all_data)
+
+    df_net = load_results(list_of_models)
+
+    utilities.boxPlotSpectral("Spectral dist", df_net, colors_list)
+    plt.show()
+
 def compare_human_vertex_models(which_results="main"):
     
     if which_results == "main":
         visualize_human_vertex_model_main_results_comparison()
     elif which_results == "modularity":
         visualize_human_vertex_model_modularity_comparison()
+    elif which_results == "spectral":
+        visualize_human_vertex_model_spectral_distance_comparison()
+
     
 
 # Current working director
@@ -914,7 +970,7 @@ def mainFunction():
     """
 
     # 1. Generate the geometric eigenmodes
-    generate_geometric_modes()
+    # generate_geometric_modes()
 
     # 2. Optimize the GEM (explore parameters landscape)
     # optimize_and_save_human_high_resolution_results()
@@ -926,13 +982,13 @@ def mainFunction():
 
     # results = "main"
     # results = "modularity"
-    # results = "spectral"
+    results = "spectral"
     
     #4. Generate benchmark models
     # generate_human_vertex_comparison_results(which_results=results)
 
     #5. Compare GEM performance with other models
-    # compare_human_vertex_models(which_results=results)
+    compare_human_vertex_models(which_results=results)
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ import networkx as nx
 from scipy.sparse.linalg import eigsh
 import seaborn as sns
 from scipy.linalg import eig
-
+import pandas as pd
 
 def resample_matrix(template, noise='gaussian', seed=None, rand_params=[0.5, 0.1], 
                     ignore_repeats=True, reset_zeros=True, resymmetrise=True):
@@ -1112,3 +1112,39 @@ def linePlotModularity(list_of_number_of_communities, list_of_methods, results_d
         # handles=legend_handles, labels=[method.capitalize() for method in list_of_methods], fontsize=12, loc="center"
         handles=legend_handles, labels=[method for method in list_of_methods], fontsize=12, loc="center"
     )
+
+def boxPlotSpectral(title, df_net, colors):
+    """
+    Generate a box plot for spectral distance results grouped by model.
+
+    Parameters:
+    - title (str): Title of the plot
+    - df_net (pd.DataFrame): DataFrame with columns 'model' and 'value',
+                             where 'value' contains arrays of scores
+    """
+    plot_df = pd.DataFrame([
+        {"model": row["model"], "value": val}
+        for _, row in df_net.iterrows()
+        for val in row["value"]
+    ])
+    
+    models = df_net["model"].tolist()
+
+    if colors is not None:
+        if len(colors) != len(models):
+            raise ValueError("Length of colors must match number of models.")
+        palette = dict(zip(models, colors))
+    else:
+        palette = "Set2"
+
+    plt.figure(figsize=(7, 5), dpi=150)
+    sns.boxplot(x="model", y="value", data=plot_df, palette=palette, width=0.3, saturation=1, showfliers=False)
+    
+    sns.stripplot(x="model", y="value", data=plot_df, color="black", size=3.5, jitter=True, alpha=0.4, edgecolor='white', linewidth=0.4)
+
+    plt.title(title)
+    plt.xlabel("Model")
+    plt.xticks()
+    plt.yticks(fontsize=14)
+    plt.tight_layout()
+    plt.show()
