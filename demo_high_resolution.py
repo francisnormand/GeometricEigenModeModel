@@ -124,7 +124,7 @@ def get_human_high_res_surface_and_connectome(path_data, human_vertex_parameters
         Vertex-level empirical connectome.
     """
 
-    surface, surface_path = utilities.get_human_template_surface(path_data)
+    surface, surface_path = utilities.get_human_template_surface()
     _, cortex_mask, connectome_type, fwhm, target_density, resampling_weights = human_vertex_parameters
 
     empirical_connectome = utilities.get_human_empirical_vertex_connectome(path_data, connectome_type, fwhm, target_density, resampling_weights, npz_=False)
@@ -195,7 +195,7 @@ def generate_geometric_modes():
 
     max_num_modes = 500
 
-    surface, surface_path = utilities.get_human_template_surface(path_data)
+    surface, surface_path = utilities.get_human_template_surface()
 
     output_eval_filename = path_data + f"/human_high_res_evals_lump_{lump}_masked_{cortex_mask}.npy"
     output_emode_filename = path_data + f"/human_high_res_emodes_lump_{lump}_masked_{cortex_mask}.npy"
@@ -970,7 +970,7 @@ def mainFunction():
     """
 
     # 1. Generate the geometric eigenmodes
-    generate_geometric_modes()
+    # generate_geometric_modes()
 
     # 2. Optimize the GEM (explore parameters landscape)
     # optimize_and_save_human_high_resolution_results()

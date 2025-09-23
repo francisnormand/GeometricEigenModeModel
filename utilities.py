@@ -22,6 +22,8 @@ import seaborn as sns
 from scipy.linalg import eig
 import pandas as pd
 
+cwd = os.getcwd()
+
 def resample_matrix(template, noise='gaussian', seed=None, rand_params=[0.5, 0.1], 
                     ignore_repeats=True, reset_zeros=True, resymmetrise=True):
     """
@@ -124,9 +126,13 @@ def get_custom_colormap(top_cmap=0.5):
 
     return custom_cmap
 
-def get_human_template_surface(path_base_data):
+def get_human_template_surface(path_surface_high_res=None):
     extension = "L.midthickness.5k.surf.vtk"
-    fullpath = path+f"/{extension}"
+
+    if path_surface_high_res == None:
+        path_surface_high_res = f"{cwd}/data/human_high_res"
+    
+    fullpath = path_surface_high_res+f"/{extension}"
     return lapy.TriaMesh.read_vtk(fullpath), fullpath
 
 def get_human_cortex_mask(path):
@@ -135,8 +141,8 @@ def get_human_cortex_mask(path):
     return cortex_mask.astype(int)
 
 
-def get_human_parcellated_cortex_mask(path, number_of_parcels, surface_name, mean_or_sum):
-    cortex_mask = np.load(path + f"_cortex_mask_to_SC{number_of_parcels}.npy")
+def get_human_parcellated_cortex_mask(path, number_of_parcels):
+    cortex_mask = np.load(path + f"/Schaefer{number_of_parcels}/cortex_mask_to_SC{number_of_parcels}.npy")
     return cortex_mask.astype(int)
 
 
@@ -376,7 +382,6 @@ def get_human_empirical_parcellated_connectome(path, target_density=0.1, number_
     n_edges_empirical_parcel = len(np.nonzero(empirical_parcel_connectivity[idxes_parcels])[0])
 
     return empirical_parcel_connectivity, n_edges_empirical_parcel
-
 
 
 def threshold_symmetric_matrix_to_density(matrix, triu_indices, density):

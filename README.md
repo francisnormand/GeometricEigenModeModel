@@ -34,5 +34,14 @@ The (hacky) last line ensures that multiple jobs can be run at the same time wit
 conda env create -f environment.yml
 conda activate geom_eigen_model
 conda install -n geom_eigen_model numpy=1.26.* scipy=1.13.* numba=0.60.* mkl mkl-service -c defaults
+```
+
+### 3. Run analyses
+
+There are 3 scripts to run the analyses (only these files should be modified). Theses scripts begin
+with demo.
+
+`demo_high resolution.py`: run the analyses for the high-resolution human connectome
+`demo_human_parcellated.py`: run the analyses for the human atlas-based connectome (INCOMPLETE)
 
 
