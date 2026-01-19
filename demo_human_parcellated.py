@@ -67,6 +67,93 @@ def generate_geometric_modes(number_of_parcels=300):
     print()
     print("geometric modes were saved")
 
+def get_human_parcellated_parameters(number_of_parcels):
+    """
+    Grab parameters associated with the empirical connectome and GEM.
+    """
+
+    connectome_type = "smoothed"
+    # connectome_type = "unsmoothed"
+
+    fwhm = 8
+    if number_of_parcels == 300:
+        target_density = 0.1
+
+    fixed_vertex_threshold_density = 0.046
+    
+    resampling_weights=False
+
+    cortex_mask = True
+    # cortex_mask = False
+
+    r_s_values_list = np.linspace(1, 20, 50)
+    
+    return r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, fixed_vertex_threshold_density, resampling_weights
+
+def optimize_and_save_human_parcellated_results(number_of_parcels=300):
+    """
+    Run large-scale optimization of the human parcellated models and save results.
+
+    Depending on the formulation, this either:
+    - Submits a SLURM job array (recommended, faster)
+    - Or runs jobs sequentially in a loop (slower)
+
+    Notes
+    -----
+    - Uses job arrays for EDR-vetex, distance-atlas, Matching index (MI) and GEM formulations.
+    - Jobs call `human_vertex_models.generate_and_save_model_performance`.
+    - For EDR, two chunks of jobs have to be sent, because there are 1000 jobs in total 
+    """
+
+    use_job_array = True 
+    # use_job_array = False
+
+    formulation = "GEM"
+    # formulation = "EDR-vertex"
+    # formulation = "distance-atlas" 
+    # formulation = "MI"
+
+    
+    r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, fixed_vertex_threshold_density, resampling_weights = get_human_parcellated_parameters(number_of_parcels)
+
+    if formulation == "GEM":
+        # GEM has 50 parameters, only once each
+        num_jobs = len(r_s_values_list)
+    else:
+        # EDR has 100 parameters, 10 times each
+        num_jobs = 1000
+        # separating into 2 chunks of 500 jobs
+        chunk_size = 500
+    
+    if use_job_array == True:
+        script_path = f"{cwd}/human_vertex_models.py"
+        print(script_path, "script_path")
+        
+        if num_jobs > 999:
+            submit_slurm_jobs_chunks(
+                num_tasks=num_jobs,
+                script_path=script_path,
+                formulation=formulation,
+                path_data=path_data,
+                chunk_size=chunk_size,  # adjust chunk size if needed
+            )
+            print("submitting chunks of a job array")
+
+        else:
+            # Generate and submit the SLURM job array
+            slurm_script = generate_slurm_script(num_jobs, script_path, formulation)
+            submit_slurm_job(slurm_script)
+            print("submitted job array")
+    
+    else:
+        from human_parcellated_models import generate_and_save_model_performance
+
+        for job_id in range(num_jobs):
+            print("---------------------------------")
+            print(job_id, "r_s_id")
+            print("---------------------------------")
+            generate_and_save_model_performance(path_data, r_s_id=job_id, formulation=formulation)
+
 # Current working director
 cwd = os.getcwd()
 

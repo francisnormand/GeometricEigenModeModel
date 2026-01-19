@@ -221,7 +221,7 @@ def generate_geometric_modes():
 
 def optimize_and_save_human_high_resolution_results():
     """
-    Run large-scale optimization of the human high-resolution model and save results.
+    Run large-scale optimization of the human high-resolution models and save results.
 
     Depending on the formulation, this either:
     - Submits a SLURM job array (recommended, faster)
