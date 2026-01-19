@@ -219,10 +219,10 @@ def EDR_generate_and_save(path_data, task_id):
 
 def generate_and_save_model_performance(path_data, r_s_id=None, formulation="GEM"):
 
-    if formulation == "EDR":
+    if formulation == "EDR-vertex":
         return EDR_generate_and_save(path_data, task_id=r_s_id)
 
-    from demo_high_resolution import get_human_vertex_parameters, get_human_high_res_surface_and_connectome, load_human_vertex_modes
+    from demo_human_parcellated import get_human_parcellated_parameters, get_human_high_res_surface_and_connectome, load_human_vertex_modes
 
     if formulation == "GEM":
         connectome_model_used = connectome_models.generate_high_res_GEM_humans
@@ -327,14 +327,15 @@ if __name__ == "__main__":
         r_s_id = int(r_s_id)
 
     if path_data is None:
-        path_data = f"/{cwd}/data/human_high_res"
+        path_data = f"/{cwd}/data/human_parcelalted"
 
     if formulation is None:
         # Manual input here instead of call from command line 
-        formulation = "EDR-vertex"
+        formulation = "GEM"
+        # formulation = "EDR-vertex"
         # formulation = "distance-atlas"
         # formulation = "MI"
-        # formulation = "GEM"
+        
 
     generate_and_save_model_performance(path_data, r_s_id, formulation)
 

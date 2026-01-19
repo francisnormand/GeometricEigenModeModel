@@ -12,6 +12,93 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import pandas as pd
 
+def generate_slurm_script(num_tasks, script_path, formulation):
+    """ Generate the SLURM script for the job array. """
+    slurm_script = f"""#!/bin/bash
+
+#SBATCH --account=kg98
+#SBATCH --output={cwd}/slurm_output/run-array_human_parcellated_%A_%a.out
+
+#SBATCH --array=0-{num_tasks-1}
+
+#SBATCH --time=02:00:00
+
+echo "Processing Id" $SLURM_ARRAY_TASK_ID
+
+echo "Activating virtual environment"
+
+source {env_path}/bin/activate
+conda activate {conda_env_name}
+
+# Execute the Python script with the array index and arguments
+python {script_path} --r_s_id $SLURM_ARRAY_TASK_ID --formulation {formulation} --path_data {path_data}
+"""
+    return slurm_script
+
+def submit_slurm_job(slurm_script):
+    """ Submit the SLURM job. """
+    slurm_file = "run_array.sh"
+    with open(slurm_file, "w") as file:
+        file.write(slurm_script)
+    
+    os.chmod(slurm_file, 0o755)
+    subprocess.run(['sbatch', slurm_file], capture_output=True, text=True, check=True)
+
+def wait_for_job(jobid):
+    import time
+    """Wait until jobid is no longer in the queue."""
+    while True:
+        result = subprocess.run(["squeue", "--job", jobid],
+                                capture_output=True, text=True)
+        if jobid not in result.stdout:
+            break
+        print(f"Waiting for job {jobid} to finish...")
+        time.sleep(300)  # check every 5 minutes
+
+def generate_slurm_script_chunks(start_idx, end_idx, script_path, formulation):
+    
+    headers = [
+        "#!/bin/bash",
+        "#SBATCH --account=kg98",
+        f"#SBATCH --output={cwd}/slurm_output/run-array_human_parcellated_%A_%a.out",
+        f"#SBATCH --array={start_idx}-{end_idx}",
+        "#SBATCH --time=02:00:00"
+    ]
+
+    body = f"""
+echo "Processing Id" $SLURM_ARRAY_TASK_ID
+
+source {env_path}/bin/activate
+conda activate {conda_env_name}
+
+python {script_path} --r_s_id $SLURM_ARRAY_TASK_ID --formulation {formulation} --path_data {path_data}
+"""
+    return "\n".join(headers) + body
+
+def submit_slurm_jobs_chunks(num_tasks, script_path, formulation, path_data, chunk_size=500):
+    import math
+    num_chunks = math.ceil(num_tasks / chunk_size)
+
+    for i in range(num_chunks):
+        print(i, "i chunk")
+        start_idx = i * chunk_size
+        end_idx = min((i+1)*chunk_size - 1, num_tasks - 1)
+
+        slurm_script = generate_slurm_script_chunks(start_idx, end_idx, script_path, formulation)
+        slurm_file = f"run_array_{i}.sh"
+        with open(slurm_file, "w") as f:
+            f.write(slurm_script)
+        os.chmod(slurm_file, 0o755)
+
+        print(f"Submitting job array {start_idx}-{end_idx}")
+        result = subprocess.run(['sbatch', slurm_file], capture_output=True, text=True, check=True)
+        stdout = result.stdout.strip()
+        print(stdout)
+
+        # get job ID from "Submitted batch job <ID>"
+        jobid = stdout.split()[-1]
+        wait_for_job(jobid)
+
 
 def generate_geometric_modes(number_of_parcels=300):
     """
@@ -90,6 +177,13 @@ def get_human_parcellated_parameters(number_of_parcels):
     
     return r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, fixed_vertex_threshold_density, resampling_weights
 
+def load_human_parcellated_modes(number_of_parcels, path_data, lump, cortex_mask):
+
+    output_eval_filename = path_data + f"/Schaefer{number_of_parcels}/human_parcellated_evals_lump_{lump}_masked_{cortex_mask}.npy"
+    output_emode_filename = path_data + f"/Schaefer{number_of_parcels}/human_parcellated_emodes_lump_{lump}_masked_{cortex_mask}.npy"
+
+    return np.load(output_eval_filename), np.load(output_emode_filename)
+
 def optimize_and_save_human_parcellated_results(number_of_parcels=300):
     """
     Run large-scale optimization of the human parcellated models and save results.
@@ -119,14 +213,17 @@ def optimize_and_save_human_parcellated_results(number_of_parcels=300):
     if formulation == "GEM":
         # GEM has 50 parameters, only once each
         num_jobs = len(r_s_values_list)
-    else:
+    elif formulation == "EDR-vertex":
         # EDR has 100 parameters, 10 times each
         num_jobs = 1000
         # separating into 2 chunks of 500 jobs
         chunk_size = 500
+    else:
+        # MI and distance-atlas
+        num_jobs = 20
     
     if use_job_array == True:
-        script_path = f"{cwd}/human_vertex_models.py"
+        script_path = f"{cwd}/human_parcellated_models.py"
         print(script_path, "script_path")
         
         if num_jobs > 999:
@@ -153,6 +250,7 @@ def optimize_and_save_human_parcellated_results(number_of_parcels=300):
             print(job_id, "r_s_id")
             print("---------------------------------")
             generate_and_save_model_performance(path_data, r_s_id=job_id, formulation=formulation)
+
 
 # Current working director
 cwd = os.getcwd()
