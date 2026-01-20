@@ -144,7 +144,7 @@ def EDR_generate_and_save(path_data, task_id, number_of_parcels=300):
     from demo_human_parcellated import get_human_parcellated_parameters, get_human_high_res_surface_and_parcellated_connectome, get_human_parcellated_EDR_parameters
 
     human_parcellated_parameters = get_human_parcellated_parameters(number_of_parcels)
-    r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, fixed_vertex_threshold_density, resampling_weights = human_parcellated_parameters
+    _, cortex_mask, connectome_type, fwhm, target_density, fixed_vertex_threshold_density, resampling_weights = human_parcellated_parameters
 
     (surface, _), cortex_mask_array, empirical_parcel_connectivity = get_human_high_res_surface_and_parcellated_connectome(path_data, number_of_parcels, human_parcellated_parameters)
 
@@ -193,7 +193,7 @@ def EDR_generate_and_save(path_data, task_id, number_of_parcels=300):
 
     print(f"current_hypothesis :{current_hypothesis}")
 
-    path_base_save = f"/{cwd}/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation}"
+    path_base_save = f"/{cwd}/data/results/human_parcellated/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation}"
     if not os.path.exists(path_base_save):
         os.makedirs(path_base_save)
 
@@ -222,8 +222,87 @@ def EDR_generate_and_save(path_data, task_id, number_of_parcels=300):
 
     print(f"done and saved {formulation}")
 
-def distance_atlas_generate_and_save(path_data, number_of_parcels, repetiton_id):
-    pass
+def powerlawRule(ditanceArray, eta):
+    return ditanceArray**eta
+
+def exponentialRule(ditanceArray, eta):
+    return np.exp(eta*ditanceArray)
+
+def distance_atlas_generate_and_save(path_data, number_of_parcels, repetition_id):
+
+    formulation = "distance-atlas"
+
+    rule="powerlaw"
+    # rule="exponential"
+
+    if rule=="exponential":
+        cost_rule = exponentialRule
+        print("exponential")
+    elif rule=="powerlaw":
+        cost_rule = powerlawRule
+        print("powerlaw")
+
+    from demo_human_parcellated import get_human_parcellated_parameters, get_human_high_res_surface_and_parcellated_connectome, get_human_parcellated_EDR_parameters
+
+    human_parcellated_parameters = get_human_parcellated_parameters(number_of_parcels)
+    _, _, connectome_type, fwhm, target_density, _, _ = human_parcellated_parameters
+
+    (_, _), _, empirical_parcel_connectivity = get_human_high_res_surface_and_parcellated_connectome(path_data, number_of_parcels, human_parcellated_parameters)
+
+    n_nodes = empirical_parcel_connectivity.shape[0]
+    idxes_parcel = np.triu_indices(n_nodes, k=1)
+
+    empirical_parcel_connectivity = (empirical_parcel_connectivity > 0).astype(int)
+
+    empirical_parcel_connectivity_idxes = empirical_parcel_connectivity[idxes_parcel]
+    idxes_edges_empirical = np.nonzero(empirical_parcel_connectivity_idxes)[0]
+    n_edges_parcel_empirical = len(idxes_edges_empirical)
+    density = n_edges_parcel_empirical/len(idxes_parcel[0])
+
+    distances, centroids = utilities.get_parcellated_human_centroids(number_of_parcels)
+    distances /= np.max(distances)
+
+    if connectome_type == "smoothed":
+        current_hypothesis = f"formulation={formulation}_fwhm={fwhm}_target_density={target_density}_repetition_id_{repetition_id}"
+    else:
+        current_hypothesis = f"formulation={formulation}_target_density={target_density}_repetition_id_{repetition_id}"
+
+    print(f"current_hypothesis :{current_hypothesis}")
+
+    path_base_save = f"/{cwd}/data/results/human_parcellated/{connectome_type}_formulation_{formulation}"
+    if not os.path.exists(path_base_save):
+        os.makedirs(path_base_save)
+
+    network_measures = ["true_positive_rate", "degreeBinary", "clustering", "node connection distance"]
+
+    print(f"target_density: {target_density}")
+    print("formulation:", formulation)
+
+    ##################################### CHECKING IF ALREADY EXISTS
+    exits = check_if_already_exists(network_measures, path_base_save, current_hypothesis)
+    if exits == True:
+        print(exits, "exits")
+        return True #Skipping
+    ##################################### 
+
+    eta = np.linspace(-11, -3, 10000)
+    results_dict = {net_measure:np.zeros(len(eta)) for net_measure in network_measures}
+
+    empirical_node_properties_dict = compute_node_properties(network_measures, empirical_parcel_connectivity, distances)
+
+    for idx_eta, eta_i in enumerate(eta):
+        
+        modelSC = connectome_models.generate_distance_atlas_model(eta_i, n_nodes, n_edges_parcel_empirical, distances, idxes_parcel, cost_rule)
+        modelSC_idxes = modelSC[idxes_parcel]
+
+        if len(network_measures) != 0:
+            compute_and_update_results(results_dict, idx_eta, network_measures, modelSC, modelSC_idxes, empirical_node_properties_dict,  empirical_parcel_connectivity_idxes, idxes_edges_empirical, distances)
+    
+    for net_measure in results_dict.keys():
+        np.save(path_base_save + f"/{net_measure}_{current_hypothesis}", results_dict[net_measure])
+
+    print(f"done and saved {formulation}")
+
 
 def generate_and_save_model_performance(number_of_parcels, path_data, r_s_id=None, formulation="GEM"):
 
@@ -231,7 +310,7 @@ def generate_and_save_model_performance(number_of_parcels, path_data, r_s_id=Non
         return EDR_generate_and_save(path_data, task_id=r_s_id, number_of_parcels=number_of_parcels)
 
     elif formulation == "distance-atlas":
-        return blablu
+        return distance_atlas_generate_and_save(path_data, number_of_parcels=number_of_parcels, repetition_id=r_s_id)
 
     elif formulation == "MI":
         return bablulh
@@ -307,28 +386,18 @@ def generate_and_save_model_performance(number_of_parcels, path_data, r_s_id=Non
     empirical_node_properties_dict = compute_node_properties(network_measures, empirical_parcel_connectivity, distances)
 
     characteristic_matrix = np.load(f"{path_data}/Schaefer{number_of_parcels}/characteristic_matrix_to_SC{number_of_parcels}.npy")
-    
-    if formulation == "GEM":
 
-        for k_idx, k in enumerate(k_range):
-            
-            modelSC = connectome_models.generate_parcellated_GEM_humans(r_s, k, emodes, evals, idxes_vertex, idxes_parcel, characteristic_matrix, fixed_vertex_threshold_density, n_edges_parcel_empirical, resampling_weights)
-            modelSC_idxes = modelSC[idxes_parcel]
-            idxes_edges_model = np.nonzero(modelSC_idxes)[0]        
-            
-            if len(network_measures) != 0:
-                compute_and_update_results(results_dict, k_idx, network_measures, modelSC, modelSC_idxes, empirical_node_properties_dict,  empirical_parcel_connectivity_idxes, idxes_edges_empirical, distances)
+    for k_idx, k in enumerate(k_range):
+        
+        modelSC = connectome_models.generate_parcellated_GEM_humans(r_s, k, emodes, evals, idxes_vertex, idxes_parcel, characteristic_matrix, fixed_vertex_threshold_density, n_edges_parcel_empirical, resampling_weights)
+        modelSC_idxes = modelSC[idxes_parcel]
+        idxes_edges_model = np.nonzero(modelSC_idxes)[0]        
+        
+        if len(network_measures) != 0:
+            compute_and_update_results(results_dict, k_idx, network_measures, modelSC, modelSC_idxes, empirical_node_properties_dict,  empirical_parcel_connectivity_idxes, idxes_edges_empirical, distances)
 
-        for net_measure in results_dict.keys():
-            np.save(path_base_save + f"/{net_measure}_{current_hypothesis}", results_dict[net_measure])
-
-
-    elif formulation == "distance-atlas":
-        pass
-
-    elif formulation == "MI":
-        pass
-    
+    for net_measure in results_dict.keys():
+        np.save(path_base_save + f"/{net_measure}_{current_hypothesis}", results_dict[net_measure])
 
     print(f"done and saved {formulation}")
         
@@ -359,8 +428,8 @@ if __name__ == "__main__":
     if formulation is None:
         # Manual input here instead of call from command line 
         # formulation = "GEM"
-        formulation = "EDR-vertex"
-        # formulation = "distance-atlas"
+        # formulation = "EDR-vertex"
+        formulation = "distance-atlas"
         # formulation = "MI"
         
     generate_and_save_model_performance(number_of_parcels, path_data, r_s_id, formulation)

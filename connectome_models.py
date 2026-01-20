@@ -154,6 +154,29 @@ def generate_EDR_vertex_parcellated_model(eta_prob_connection, eta_w, distances_
 
     return modelSC
 
+def generate_distance_atlas_model(eta, nNodes, nConnectionsFORGRAPH, distanceMatrix_idxes, idxes, cost_rule):
+   
+    totalNumberOfEdges = len(idxes[0])
+    #p_ij = np.exp(distanceMatrix[idxes]*eta)
+    # p_ij = distanceMatrix[idxes]**eta
+    
+    p_ij = cost_rule(distanceMatrix_idxes, eta)
+
+    p_ij /= np.sum(p_ij)
+    E_uv = np.copy(p_ij)
+
+    modelSC = np.zeros((nNodes,nNodes), dtype="float32")
+
+    edgeIdxes = np.random.choice(totalNumberOfEdges, size=nConnectionsFORGRAPH, p=p_ij, replace=False)
+    for edgeIdx in edgeIdxes:
+        ii = idxes[0][edgeIdx]
+        jj = idxes[1][edgeIdx]
+
+        modelSC[ii, jj] = 1
+        modelSC[jj, ii] = 1
+    
+    return modelSC
+
 
 def generate_random_vertex_model(n_vertices, total_possible_connections, n_connections_vertex, idxes_vertex, weighted=False):
     idxe_random_edges = np.random.choice(total_possible_connections, size=n_connections_vertex, replace=False)
