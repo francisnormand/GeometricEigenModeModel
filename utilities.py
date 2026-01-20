@@ -93,6 +93,25 @@ def resample_matrix(template, noise='gaussian', seed=None, rand_params=[0.5, 0.1
 
     return spatial_noise
 
+def downsample_high_resolution_structural_connectivity_to_atlas(high_resolution_connectome,
+                                                                parcellation):
+    """
+    From Sina Mansour
+    
+    Downsample the high-resolution structural connectivity matrix to the resolution of a brain atlas.
+
+    Args:
+
+        high_resolution_connectome: The high-resolution structural connectome (v x v sparse CSR matrix)
+
+        parcellation: A p x v sparse percellation matrix (can also accept a soft parcellation)
+
+    Returns:
+
+        connectome: The atlas-resolution structural connectome.
+    """
+    return parcellation.dot(high_resolution_connectome.dot(parcellation.T))
+
 
 def apply_threshold_to_match_densities(vertexSpaceSC, nEdgesVertexSpace, idxes):
 
@@ -369,7 +388,7 @@ def get_human_empirical_parcellated_connectome(path, target_density=0.1, number_
     elif connectome_type == "unsmoothed":
         extension_connectome = f"from_32k_raw_template_connectome_Schaefer{number_of_parcels}.npy"
   
-    empirical_parcel_connectivity = np.load(path + "/" + extension_connectome)
+    empirical_parcel_connectivity = np.load(f"{path}/Schaefer{number_of_parcels}/{extension_connectome}")
     idxes_parcels = np.triu_indices(empirical_parcel_connectivity.shape[0], k=1)
 
     n_edges_threshold = int(target_density * len(idxes_parcels[0]))

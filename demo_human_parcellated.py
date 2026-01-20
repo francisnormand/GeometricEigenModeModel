@@ -177,12 +177,26 @@ def get_human_parcellated_parameters(number_of_parcels):
     
     return r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, fixed_vertex_threshold_density, resampling_weights
 
-def load_human_parcellated_modes(number_of_parcels, path_data, lump, cortex_mask):
+def load_human_parcellated_modes(path_data, number_of_parcels, lump, cortex_mask):
 
-    output_eval_filename = path_data + f"/Schaefer{number_of_parcels}/human_parcellated_evals_lump_{lump}_masked_{cortex_mask}.npy"
-    output_emode_filename = path_data + f"/Schaefer{number_of_parcels}/human_parcellated_emodes_lump_{lump}_masked_{cortex_mask}.npy"
+    output_eval_filename = f"{path_data}/Schaefer{number_of_parcels}/human_parcellated_evals_lump_{lump}_masked_{cortex_mask}.npy"
+    output_emode_filename = f"{path_data}/Schaefer{number_of_parcels}/human_parcellated_emodes_lump_{lump}_masked_{cortex_mask}.npy"
 
     return np.load(output_eval_filename), np.load(output_emode_filename)
+
+def get_human_high_res_surface_and_parcellated_connectome(path_data, number_of_parcels, human_parcellated_parameters):
+    
+    surface, surface_path = utilities.get_human_template_surface()
+    _, cortex_mask, connectome_type, fwhm, target_density, _, resampling_weights = human_parcellated_parameters
+
+    empirical_connectome, _ = utilities.get_human_empirical_parcellated_connectome(path_data, target_density, number_of_parcels, connectome_type)
+    
+    if cortex_mask ==True:
+        cortex_mask_array = utilities.get_human_parcellated_cortex_mask(path_data, number_of_parcels)
+    else:
+        cortex_mask_array = None
+
+    return (surface, surface_path), cortex_mask_array, empirical_connectome
 
 def optimize_and_save_human_parcellated_results(number_of_parcels=300):
     """
@@ -275,12 +289,13 @@ def mainFunction():
 
     These functions have to be run sequentially.
     """
+    number_of_parcels = 300
 
     # 1. Generate the geometric eigenmodes
-    generate_geometric_modes()
+    generate_geometric_modes(number_of_parcels)
 
     # 2. Optimize the GEM (explore parameters landscape)
-    # optimize_and_save_human_parcellated_results()
+    # optimize_and_save_human_parcellated_results(number_of_parcels)
     # print()
 
     #3. Visualize performance

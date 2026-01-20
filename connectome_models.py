@@ -77,16 +77,16 @@ def generate_parcellated_GEM_humans(r_s, k, emodes, evals, idxes_vertex, idxes_p
 
     vertexModelSC = (vertexModelSC + vertexModelSC.T)/2
 
-    vertexModelSC_thresholded = threshold_symmetric_matrix_to_density(vertexModelSC, idxes_vertex, density=fixed_threshold_vertex)
+    vertexModelSC_thresholded = utilities.threshold_symmetric_matrix_to_density(vertexModelSC, idxes_vertex, density=fixed_threshold_vertex)
 
-    model_parcellated  = downsample_high_resolution_structural_connectivity_to_atlas(vertexModelSC_thresholded,
+    model_parcellated  = utilities.downsample_high_resolution_structural_connectivity_to_atlas(vertexModelSC_thresholded,
                                                     characteristic_matrix)
 
-    model_parcellated_thresholded = applyThresholdToMatchDensities(model_parcellated, n_edges_empirical, idxes_parcel)
+    model_parcellated_thresholded = utilities.apply_threshold_to_match_densities(model_parcellated, n_edges_empirical, idxes_parcel)
     model_parcellated_thresholded /= np.max(model_parcellated_thresholded)
 
     if resampling_weights  == "gaussian":
-        model_parcellated_thresholded = resample_matrix(model_parcellated_thresholded)
+        model_parcellated_thresholded = utilities.resample_matrix(model_parcellated_thresholded)
 
     return model_parcellated_thresholded
 

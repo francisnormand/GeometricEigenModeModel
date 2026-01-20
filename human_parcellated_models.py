@@ -217,32 +217,34 @@ def EDR_generate_and_save(path_data, task_id):
 
     print(f"done and saved {formulation}")
 
-def generate_and_save_model_performance(path_data, r_s_id=None, formulation="GEM"):
+def generate_and_save_model_performance(number_of_parcels, path_data, r_s_id=None, formulation="GEM"):
 
     if formulation == "EDR-vertex":
         return EDR_generate_and_save(path_data, task_id=r_s_id)
 
-    from demo_human_parcellated import get_human_parcellated_parameters, get_human_high_res_surface_and_connectome, load_human_vertex_modes
+    elif formulation == "distance-atlas":
+        return blablu
 
-    if formulation == "GEM":
-        connectome_model_used = connectome_models.generate_high_res_GEM_humans
-    elif formulation == "LBO":
-        connectome_model_used = connectome_models.generate_high_res_LBO_humans
+    elif formulation == "MI":
+        return bablulh
+    
+    from demo_human_parcellated import get_human_parcellated_parameters, get_human_high_res_surface_and_parcellated_connectome, load_human_parcellated_modes
 
     lump = False ## Fixed. Will override previous files if changed.
 
-    human_vertex_parameters = get_human_vertex_parameters()
-    r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, resampling_weights = human_vertex_parameters
+    human_parcellated_parameters = get_human_parcellated_parameters(number_of_parcels)
+    r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, fixed_vertex_threshold_density, resampling_weights = human_parcellated_parameters
 
-    (surface, _), cortex_mask_array, empirical_vertex_connectivity = get_human_high_res_surface_and_connectome(path_data, human_vertex_parameters)
+    (_, _), cortex_mask_array, empirical_parcel_connectivity = get_human_high_res_surface_and_parcellated_connectome(path_data, number_of_parcels, human_parcellated_parameters)
     
-    evals, emodes = load_human_vertex_modes(path_data, lump, cortex_mask)
-
-    vertices = surface.v
+    evals, emodes = load_human_parcellated_modes(path_data, number_of_parcels, lump, cortex_mask)
 
     k_range = np.array([k_ for k_ in range(2, 200)])
 
-    network_measures = ["degree", "true_positive_rate", "degreeBinary", "spearman_union_weights", "ranked_weights_strength", "clustering", "node connection distance"]
+    if formulation == "GEM":
+        network_measures = ["degree", "true_positive_rate", "degreeBinary", "spearman_union_weights", "ranked_weights_strength", "clustering", "node connection distance"]
+    else:
+        network_measures = ["true_positive_rate", "degreeBinary", "clustering", "node connection distance"]
 
     if connectome_type == "smoothed":
         current_hypothesis = f"formulation={formulation}_fwhm={fwhm}_target_density={target_density}"
@@ -260,7 +262,7 @@ def generate_and_save_model_performance(path_data, r_s_id=None, formulation="GEM
     print(f"r_s: {r_s}")
     print("formulation:", formulation)
     
-    path_base_save = f"/{cwd}/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation}"
+    path_base_save = f"/{cwd}/data/results/human_parcellated/Schaefer{number_of_parcels}/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation}"
     if not os.path.exists(path_base_save):
         os.makedirs(path_base_save)
 
@@ -270,40 +272,55 @@ def generate_and_save_model_performance(path_data, r_s_id=None, formulation="GEM
         return True
     ##################################### 
     
-    n_vertices = empirical_vertex_connectivity.shape[0]
-    idxes_vertex = np.triu_indices(n_vertices, k=1)
+    n_nodes = empirical_parcel_connectivity.shape[0]
+    idxes_parcel = np.triu_indices(n_nodes, k=1)
 
-    empirical_vertex_connectivity_idxes = empirical_vertex_connectivity[idxes_vertex]
-    idxes_edges_empirical = np.nonzero(empirical_vertex_connectivity_idxes)[0]
-    n_edges_vertex_empirical = len(idxes_edges_empirical)
-    density = n_edges_vertex_empirical/len(idxes_vertex[0])
+    empirical_parcel_connectivity_idxes = empirical_parcel_connectivity[idxes_parcel]
+    idxes_edges_empirical = np.nonzero(empirical_parcel_connectivity_idxes)[0]
+    n_edges_parcel_empirical = len(idxes_edges_empirical)
+    density = n_edges_parcel_empirical/len(idxes_parcel[0])
+
+    print(n_edges_parcel_empirical, "n_edges_parcel_empirical")
 
     if cortex_mask == True:
         idxes_cortex = np.where(cortex_mask_array == 1)[0]
         emodes = emodes[idxes_cortex, :]
-        vertices = vertices[idxes_cortex, :]
     
     emodes = emodes[:, 0:k_range.max()+1]
     evals = evals[0:k_range.max()+1]
+    n_vertices = emodes.shape[0]
+    idxes_vertex = np.triu_indices(n_vertices, k=1)
 
-    distances = pdist(vertices)
+    distances, centroids = utilities.get_parcellated_human_centroids(number_of_parcels)
     distances_idxes_edges_empirical = distances[idxes_edges_empirical]
 
     results_dict = {network_metric:np.empty(len(k_range)) for network_metric in network_measures}
         
-    empirical_node_properties_dict = compute_node_properties(network_measures, empirical_vertex_connectivity, distances)
-    
-    for k_idx, k in enumerate(k_range):
-    
-        vertexModelSC = connectome_model_used(r_s, k, emodes, evals, density, idxes_vertex, resampling_weights)
-        vertexModelSC_idxes = vertexModelSC[idxes_vertex]
-        idxes_edges_model = np.nonzero(vertexModelSC_idxes)[0]        
+    empirical_node_properties_dict = compute_node_properties(network_measures, empirical_parcel_connectivity, distances)
 
-        if len(network_measures) != 0:
-            compute_and_update_results(results_dict, k_idx, network_measures, vertexModelSC, vertexModelSC_idxes, empirical_node_properties_dict,  empirical_vertex_connectivity_idxes, idxes_edges_empirical, distances)
+    characteristic_matrix = np.load(f"{path_data}/Schaefer{number_of_parcels}/characteristic_matrix_to_SC{number_of_parcels}.npy")
+    
+    if formulation == "GEM":
 
-    for net_measure in results_dict.keys():
-        np.save(path_base_save + f"/{net_measure}_{current_hypothesis}", results_dict[net_measure])
+        for k_idx, k in enumerate(k_range):
+            
+            modelSC = connectome_models.generate_parcellated_GEM_humans(r_s, k, emodes, evals, idxes_vertex, idxes_parcel, characteristic_matrix, fixed_vertex_threshold_density, n_edges_parcel_empirical, resampling_weights)
+            modelSC_idxes = modelSC[idxes_parcel]
+            idxes_edges_model = np.nonzero(modelSC_idxes)[0]        
+            
+            if len(network_measures) != 0:
+                compute_and_update_results(results_dict, k_idx, network_measures, modelSC, modelSC_idxes, empirical_node_properties_dict,  empirical_parcel_connectivity_idxes, idxes_edges_empirical, distances)
+
+        for net_measure in results_dict.keys():
+            np.save(path_base_save + f"/{net_measure}_{current_hypothesis}", results_dict[net_measure])
+
+
+    elif formulation == "distance-atlas":
+        pass
+
+    elif formulation == "MI":
+        pass
+    
 
     print(f"done and saved {formulation}")
         
@@ -320,6 +337,8 @@ if __name__ == "__main__":
     r_s_id = args.r_s_id
     formulation = args.formulation
 
+    number_of_parcels = 300
+
     if r_s_id is None:
         r_s_id = 0
 
@@ -327,7 +346,7 @@ if __name__ == "__main__":
         r_s_id = int(r_s_id)
 
     if path_data is None:
-        path_data = f"/{cwd}/data/human_parcelalted"
+        path_data = f"/{cwd}/data/human_parcellated"
 
     if formulation is None:
         # Manual input here instead of call from command line 
@@ -336,8 +355,7 @@ if __name__ == "__main__":
         # formulation = "distance-atlas"
         # formulation = "MI"
         
-
-    generate_and_save_model_performance(path_data, r_s_id, formulation)
+    generate_and_save_model_performance(number_of_parcels, path_data, r_s_id, formulation)
 
     os._exit(0)
 
