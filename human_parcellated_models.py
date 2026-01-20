@@ -83,7 +83,6 @@ def compute_and_update_results(results_dict, k_idx, network_measures, vertexMode
     for measure_ in network_measures:
         if measure_ == "spearman_union_weights":
             idxes_union = np.where((vertexModelSC_idxes != 0) | (empirical_vertex_connectivity_idxes != 0))[0]
-            
             results_dict[measure_][k_idx] = fast_spearmanr_numba(vertexModelSC_idxes[idxes_union], empirical_vertex_connectivity_idxes[idxes_union])
         
         elif measure_ == "true_positive_rate":
@@ -120,7 +119,7 @@ def get_human_vertex_results(network_measures, vertexModelSC, vertexModelSC_thre
 
     return results_dict
 
-def EDR_generate_and_save(path_data, task_id):
+def EDR_generate_and_save(path_data, task_id, number_of_parcels=300):
     """
     Generate and save EDR model performance for a given parameter set.
 
@@ -139,45 +138,51 @@ def EDR_generate_and_save(path_data, task_id):
     eta_id = task_id // 10 # 0 to 99 (etas)
     repetition_id = task_id % 10 # 0 to 9 (repetitions)
 
-    formulation = "EDR"
+    formulation = "EDR-vertex"
     # number_of_repetitions = 10 # All repetitions are saved separately to make it more efficient.
 
-    from demo_high_resolution import get_human_vertex_parameters, get_human_high_res_surface_and_connectome, load_human_vertex_modes, get_human_vertex_EDR_parameters
+    from demo_human_parcellated import get_human_parcellated_parameters, get_human_high_res_surface_and_parcellated_connectome, get_human_parcellated_EDR_parameters
 
-    human_vertex_parameters = get_human_vertex_parameters()
-    r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, resampling_weights = human_vertex_parameters
+    human_parcellated_parameters = get_human_parcellated_parameters(number_of_parcels)
+    r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, fixed_vertex_threshold_density, resampling_weights = human_parcellated_parameters
 
-    (surface, _), cortex_mask_array, empirical_vertex_connectivity = get_human_high_res_surface_and_connectome(path_data, human_vertex_parameters)
-    
+    (surface, _), cortex_mask_array, empirical_parcel_connectivity = get_human_high_res_surface_and_parcellated_connectome(path_data, number_of_parcels, human_parcellated_parameters)
+
     vertices = surface.v
 
     if cortex_mask == True:
         idxes_cortex = np.where(cortex_mask_array == 1)[0]
         vertices = vertices[idxes_cortex, :]
 
-    distances = pdist(vertices)
+    distances_vertices = pdist(vertices)
+    n_vertices = vertices.shape[0]
+    idxes_vertex = np.triu_indices(n_vertices, k=1)
 
     network_measures = ["degree", "true_positive_rate", "degreeBinary", "spearman_union_weights", "ranked_weights_strength", "clustering", "node connection distance"]
-    distance_measures = []
 
     print(f"target_density: {target_density}")
     print("formulation:", formulation)
     
-    n_vertices = empirical_vertex_connectivity.shape[0]
-    idxes_vertex = np.triu_indices(n_vertices, k=1)
+    n_nodes = empirical_parcel_connectivity.shape[0]
+    idxes_parcel = np.triu_indices(n_nodes, k=1)
 
     total_possible_connections = len(idxes_vertex[0])
 
-    empirical_vertex_connectivity_idxes = empirical_vertex_connectivity[idxes_vertex]
-    idxes_edges_empirical = np.nonzero(empirical_vertex_connectivity_idxes)[0]
-    n_edges_vertex_empirical = len(idxes_edges_empirical)
-    density = n_edges_vertex_empirical/len(idxes_vertex[0])
+    n_edges_vertex_empirical = int(fixed_vertex_threshold_density * total_possible_connections)
 
+    empirical_parcel_connectivity_idxes = empirical_parcel_connectivity[idxes_parcel]
+    idxes_edges_empirical = np.nonzero(empirical_parcel_connectivity_idxes)[0]
+    n_edges_parcel_empirical = len(idxes_edges_empirical)
+    density = n_edges_parcel_empirical/len(idxes_parcel[0])
+
+    print(n_edges_parcel_empirical, "n_edges_parcel_empirical")
+
+    distances, centroids = utilities.get_parcellated_human_centroids(number_of_parcels)
     distances_idxes_edges_empirical = distances[idxes_edges_empirical]
 
-    empirical_node_properties_dict = compute_node_properties(network_measures, empirical_vertex_connectivity, distances)
+    empirical_node_properties_dict = compute_node_properties(network_measures, empirical_parcel_connectivity, distances)
 
-    eta_prob_connection_array, eta_weights_array = get_human_vertex_EDR_parameters()
+    eta_prob_connection_array, eta_weights_array = get_human_parcellated_EDR_parameters(number_of_parcels)
 
     eta_prob_connection = eta_prob_connection_array[eta_id]
 
@@ -200,15 +205,15 @@ def EDR_generate_and_save(path_data, task_id):
     ##################################### 
 
     results_dict = {network_metric:np.empty(len(eta_weights_array)) for network_metric in network_measures}
+    characteristic_matrix = np.load(f"{path_data}/Schaefer{number_of_parcels}/characteristic_matrix_to_SC{number_of_parcels}.npy")
 
     for idx_eta_w, eta_w in enumerate(eta_weights_array):
-        vertexModelSC = connectome_models.generate_EDR_vertex_model(eta_prob_connection, eta_w, distances, idxes_vertex, n_vertices, n_edges_vertex_empirical, total_possible_connections, resampling_weights)
-
-        vertexModelSC_idxes = vertexModelSC[idxes_vertex]
-        idxes_edges_model = np.nonzero(vertexModelSC_idxes)[0]        
-
+        modelSC = connectome_models.generate_EDR_vertex_parcellated_model(eta_prob_connection, eta_w, distances_vertices, idxes_vertex, idxes_parcel, n_vertices, n_edges_vertex_empirical, total_possible_connections, resampling_weights, characteristic_matrix, n_edges_parcel_empirical)
+    
+        modelSC_idxes = modelSC[idxes_parcel]
+        idxes_edges_model = np.nonzero(modelSC_idxes)[0]        
         if len(network_measures) != 0:
-            compute_and_update_results(results_dict, idx_eta_w, network_measures, vertexModelSC, vertexModelSC_idxes, empirical_node_properties_dict,  empirical_vertex_connectivity_idxes, idxes_edges_empirical, distances)
+            compute_and_update_results(results_dict, idx_eta_w, network_measures, modelSC, modelSC_idxes, empirical_node_properties_dict,  empirical_parcel_connectivity_idxes, idxes_edges_empirical, distances)
 
         # print(time.time() - start_time, "time for one eta")
 
@@ -217,10 +222,13 @@ def EDR_generate_and_save(path_data, task_id):
 
     print(f"done and saved {formulation}")
 
+def distance_atlas_generate_and_save(path_data, number_of_parcels, repetiton_id):
+    pass
+
 def generate_and_save_model_performance(number_of_parcels, path_data, r_s_id=None, formulation="GEM"):
 
     if formulation == "EDR-vertex":
-        return EDR_generate_and_save(path_data, task_id=r_s_id)
+        return EDR_generate_and_save(path_data, task_id=r_s_id, number_of_parcels=number_of_parcels)
 
     elif formulation == "distance-atlas":
         return blablu
@@ -350,8 +358,8 @@ if __name__ == "__main__":
 
     if formulation is None:
         # Manual input here instead of call from command line 
-        formulation = "GEM"
-        # formulation = "EDR-vertex"
+        # formulation = "GEM"
+        formulation = "EDR-vertex"
         # formulation = "distance-atlas"
         # formulation = "MI"
         

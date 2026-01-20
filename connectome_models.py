@@ -127,6 +127,34 @@ def generate_EDR_vertex_model(eta_prob_connection, eta_w, distances, idxes_verte
 
     return vertexModelSC
 
+
+def generate_EDR_vertex_parcellated_model(eta_prob_connection, eta_w, distances_vertex, idxes_vertex, idxes_parcel, n_vertices, n_edges_vertex_empirical, total_possible_connections, resampling_weights, characteristic_matrix, n_edges_parcel_empirical):
+
+    p_ij = np.exp(-eta_prob_connection * distances_vertex)
+    
+    A_ij_binary_EDR = generate_binary_network_from_p_distribution(p_ij, idxes_vertex, n_vertices, n_edges_vertex_empirical, total_possible_connections)
+    
+    idxes_connections_model = np.nonzero(A_ij_binary_EDR[idxes_vertex])[0]
+    distances_idxes_edges_model = distances_vertex[idxes_connections_model]
+    
+    vertexModelSC = np.zeros((n_vertices, n_vertices))
+    vertexModelSC_idxes = np.zeros(len(idxes_vertex[0]))
+    vertexModelSC_idxes[idxes_connections_model] = np.exp(-eta_w * distances_idxes_edges_model)
+    
+    vertexModelSC[idxes_vertex] = vertexModelSC_idxes
+    vertexModelSC += vertexModelSC.T
+
+    if resampling_weights  == "gaussian":
+        vertexModelSC = resample_matrix(vertexModelSC)
+
+    modelSC = utilities.downsample_high_resolution_structural_connectivity_to_atlas(vertexModelSC, characteristic_matrix)
+    modelSC = utilities.apply_threshold_to_match_densities(modelSC, n_edges_parcel_empirical, idxes_parcel)
+
+    modelSC /= np.max(modelSC)
+
+    return modelSC
+
+
 def generate_random_vertex_model(n_vertices, total_possible_connections, n_connections_vertex, idxes_vertex, weighted=False):
     idxe_random_edges = np.random.choice(total_possible_connections, size=n_connections_vertex, replace=False)
     vertexModelSC_idxes = np.zeros(total_possible_connections)

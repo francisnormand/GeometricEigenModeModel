@@ -198,6 +198,14 @@ def get_human_high_res_surface_and_parcellated_connectome(path_data, number_of_p
 
     return (surface, surface_path), cortex_mask_array, empirical_connectome
 
+def get_human_parcellated_EDR_parameters(number_of_parcels=300):
+    
+    eta_prob_connection_array = np.linspace(0.05, 0.2, 100)
+    eta_weights_array = np.linspace(-0.1, 0.1, 100)
+
+    return eta_prob_connection_array, eta_weights_array
+
+
 def optimize_and_save_human_parcellated_results(number_of_parcels=300):
     """
     Run large-scale optimization of the human parcellated models and save results.
