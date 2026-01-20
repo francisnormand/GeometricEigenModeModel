@@ -177,6 +177,92 @@ def generate_distance_atlas_model(eta, nNodes, nConnectionsFORGRAPH, distanceMat
     
     return modelSC
 
+def update_matching(a, m=None, n=None, d=None, ii=None, jj=None):
+    if m is None and n is None and d is None and ii is None and jj is None:
+        assert np.array_equal(a.T, (a != 0).astype(float)), "a must be symmetric and of the correct type"
+        n = 2 * np.dot(a, a)
+        np.fill_diagonal(n, 0)
+        temp = np.sum(a, axis=1)
+        d = temp[:, None] + temp - 2 * a
+        m = n / (d + (n == 0))
+        return a, m, n, d
+
+    # a[ii, jj] = 1
+    # a[jj, ii] = 1
+
+    temp1 = n[:, ii] + 2 * a[:, jj]
+    temp2 = n[:, jj] + 2 * a[:, ii]
+    
+    n[:, ii] = temp1
+    n[ii, :] = temp1
+    n[:, jj] = temp2
+    n[jj, :] = temp2
+    n[ii, ii] = 0
+    n[jj, jj] = 0
+
+    temp = d[:, [ii, jj]] + 1
+    d[:, [ii, jj]] = temp
+    d[[ii, jj], :] = temp.T
+
+    d[ii, jj] = d[ii, jj] - 1
+    d[jj, ii] = d[jj, ii] - 1
+    d[ii, ii] = d[ii, ii] + 1
+    d[jj, jj] = d[jj, jj] + 1
+
+    # print(n[:, [ii,jj]].shape, "n[:, [ii,jj]].shape")
+    # print((n[:, [ii,jj]].T).shape, "n[:, [ii,jj]].shape")
+
+    m[:, [ii, jj]] = n[:, [ii, jj]] / (d[:, [ii, jj]] + (n[:, [ii,jj]]== 0))
+    m[[ii, jj], :] = n[[ii, jj], :] / (d[[ii, jj], :] + (n[[ii,jj], :] == 0))
+
+    return a, m, n, d
+
+def generate_matching_index_model(eta, gamma, nNodes, nConnectionsFORGRAPH, distanceMatrix_idxes, totalNumberOfEdges, idxes, cost_rule):
+   
+    p_ij = cost_rule(distanceMatrix_idxes, eta)
+
+    p_ij /= np.max(p_ij)
+    p_ij /= np.sum(p_ij)
+    E_uv = np.copy(p_ij)
+
+    modelSC = np.zeros((nNodes,nNodes), dtype="float32")
+    edgesAdded = []
+    
+    for nConnectionToAdd in range(nConnectionsFORGRAPH):
+        # print(nConnectionToAdd)
+        edgeIdx = np.random.choice(totalNumberOfEdges, p=p_ij)
+        
+        ii = idxes[0][edgeIdx]
+        jj = idxes[1][edgeIdx]
+
+        modelSC[ii, jj] = 1
+        modelSC[jj, ii] = 1
+       
+        if nConnectionToAdd == 0:
+            _, matching_index_update, numerator, denominator = update_matching(modelSC)
+        else:
+            _, matching_index_update, numerator, denominator = update_matching(modelSC, matching_index_update, numerator, denominator, ii, jj)
+        
+        matching_index_diago = matching_index_update[idxes]
+        matching_index_diago[edgeIdx] = 0
+
+        matching_index_diago += 1e-6
+        matching_index_diago /= np.max(matching_index_diago)
+        
+        matching_index_diago = matching_index_diago**gamma
+
+        matching_index_diago /= np.max(matching_index_diago)
+        
+        p_ij = E_uv * matching_index_diago
+        
+        p_ij[edgeIdx] = 0
+        p_ij /= np.sum(p_ij)
+
+        E_uv[edgeIdx] = 0
+        E_uv /= np.max(E_uv)
+
+    return modelSC
+
 
 def generate_random_vertex_model(n_vertices, total_possible_connections, n_connections_vertex, idxes_vertex, weighted=False):
     idxe_random_edges = np.random.choice(total_possible_connections, size=n_connections_vertex, replace=False)

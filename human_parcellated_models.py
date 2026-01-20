@@ -77,20 +77,27 @@ def check_if_already_exists(network_measures, path_base_save, current_hypothesis
     return False
 
 
-def compute_and_update_results(results_dict, k_idx, network_measures, vertexModelSC, vertexModelSC_idxes, empirical_node_properties_dict, empirical_vertex_connectivity_idxes, idxes_edges_empirical, distances):
+def compute_and_update_results(results_dict, k_idx, network_measures, vertexModelSC, vertexModelSC_idxes, empirical_node_properties_dict, empirical_vertex_connectivity_idxes, idxes_edges_empirical, distances, idx_gamma=False):
 
     node_properties_model_dict = compute_node_properties(network_measures, vertexModelSC, distances)
     for measure_ in network_measures:
         if measure_ == "spearman_union_weights":
             idxes_union = np.where((vertexModelSC_idxes != 0) | (empirical_vertex_connectivity_idxes != 0))[0]
-            results_dict[measure_][k_idx] = fast_spearmanr_numba(vertexModelSC_idxes[idxes_union], empirical_vertex_connectivity_idxes[idxes_union])
+            if idx_gamma == False:
+                results_dict[measure_][k_idx] = fast_spearmanr_numba(vertexModelSC_idxes[idxes_union], empirical_vertex_connectivity_idxes[idxes_union])
+            else:
+                results_dict[measure_][idx_gamma, k_idx] = fast_spearmanr_numba(vertexModelSC_idxes[idxes_union], empirical_vertex_connectivity_idxes[idxes_union])
         
         elif measure_ == "true_positive_rate":
-            results_dict[measure_][k_idx] = compute_true_positive_rate(vertexModelSC_idxes, idxes_edges_empirical)
-        
+            if idx_gamma == False:
+                results_dict[measure_][k_idx] = compute_true_positive_rate(vertexModelSC_idxes, idxes_edges_empirical)
+            else:
+                results_dict[measure_][idx_gamma, k_idx] = compute_true_positive_rate(vertexModelSC_idxes, idxes_edges_empirical)
         else:
-            results_dict[measure_][k_idx] = spearmanr(node_properties_model_dict[measure_], empirical_node_properties_dict[measure_])[0]
-
+            if idx_gamma == False:
+                results_dict[measure_][k_idx] = spearmanr(node_properties_model_dict[measure_], empirical_node_properties_dict[measure_])[0]
+            else:
+                results_dict[measure_][idx_gamma, k_idx] = spearmanr(node_properties_model_dict[measure_], empirical_node_properties_dict[measure_])[0]
 
 def get_human_vertex_results(network_measures, vertexModelSC, vertexModelSC_thresholded_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances):
 
@@ -286,7 +293,7 @@ def distance_atlas_generate_and_save(path_data, number_of_parcels, repetition_id
     ##################################### 
 
     eta = np.linspace(-11, -3, 10000)
-    results_dict = {net_measure:np.zeros(len(eta)) for net_measure in network_measures}
+    results_dict = {net_measure:np.empty(len(eta)) for net_measure in network_measures}
 
     empirical_node_properties_dict = compute_node_properties(network_measures, empirical_parcel_connectivity, distances)
 
@@ -304,6 +311,87 @@ def distance_atlas_generate_and_save(path_data, number_of_parcels, repetition_id
     print(f"done and saved {formulation}")
 
 
+def matching_index_generate_and_save(path_data, number_of_parcels, repetition_id):
+
+    formulation = "MI"
+
+    rule="powerlaw"
+    # rule="exponential"
+
+    if rule=="exponential":
+        cost_rule = exponentialRule
+        print("exponential")
+    elif rule=="powerlaw":
+        cost_rule = powerlawRule
+        print("powerlaw")
+
+    from demo_human_parcellated import get_human_parcellated_parameters, get_human_high_res_surface_and_parcellated_connectome, get_human_parcellated_EDR_parameters
+
+    human_parcellated_parameters = get_human_parcellated_parameters(number_of_parcels)
+    _, _, connectome_type, fwhm, target_density, _, _ = human_parcellated_parameters
+
+    (_, _), _, empirical_parcel_connectivity = get_human_high_res_surface_and_parcellated_connectome(path_data, number_of_parcels, human_parcellated_parameters)
+
+    n_nodes = empirical_parcel_connectivity.shape[0]
+    idxes_parcel = np.triu_indices(n_nodes, k=1)
+
+    empirical_parcel_connectivity = (empirical_parcel_connectivity > 0).astype(int)
+
+    empirical_parcel_connectivity_idxes = empirical_parcel_connectivity[idxes_parcel]
+    idxes_edges_empirical = np.nonzero(empirical_parcel_connectivity_idxes)[0]
+    n_edges_parcel_empirical = len(idxes_edges_empirical)
+    density = n_edges_parcel_empirical/len(idxes_parcel[0])
+
+    distances, centroids = utilities.get_parcellated_human_centroids(number_of_parcels)
+    distances /= np.max(distances)
+
+    if connectome_type == "smoothed":
+        current_hypothesis = f"formulation={formulation}_fwhm={fwhm}_target_density={target_density}_repetition_id_{repetition_id}"
+    else:
+        current_hypothesis = f"formulation={formulation}_target_density={target_density}_repetition_id_{repetition_id}"
+
+    print(f"current_hypothesis :{current_hypothesis}")
+
+    path_base_save = f"/{cwd}/data/results/human_parcellated/{connectome_type}_formulation_{formulation}"
+    if not os.path.exists(path_base_save):
+        os.makedirs(path_base_save)
+
+    network_measures = ["true_positive_rate", "degreeBinary", "clustering", "node connection distance"]
+
+    print(f"target_density: {target_density}")
+    print("formulation:", formulation)
+
+    ##################################### CHECKING IF ALREADY EXISTS
+    exits = check_if_already_exists(network_measures, path_base_save, current_hypothesis)
+    if exits == True:
+        print(exits, "exits")
+        return True #Skipping
+    ##################################### 
+
+    eta = np.linspace(-11, -3, 100)
+    gamma = np.linspace(0.1, 0.7, 100)
+    
+    results_dict = {net_measure:np.empty((len(gamma), len(eta))) for net_measure in network_measures}
+
+    empirical_node_properties_dict = compute_node_properties(network_measures, empirical_parcel_connectivity, distances)
+    total_number_of_possible_edges = len(idxes_parcel[0])
+
+    for idx_gamma, gamma_i in enumerate(gamma):
+        
+        for idx_eta, eta_i in enumerate(eta):
+
+            modelSC = connectome_models.generate_matching_index_model(eta_i, gamma_i, n_nodes, n_edges_parcel_empirical, distances, total_number_of_possible_edges, idxes_parcel, cost_rule)
+            modelSC_idxes = modelSC[idxes_parcel]
+
+            if len(network_measures) != 0:
+                compute_and_update_results(results_dict, idx_eta, network_measures, modelSC, modelSC_idxes, empirical_node_properties_dict,  empirical_parcel_connectivity_idxes, idxes_edges_empirical, distances, idx_gamma=idx_gamma)
+    
+    for net_measure in results_dict.keys():
+        np.save(path_base_save + f"/{net_measure}_{current_hypothesis}", results_dict[net_measure])
+
+    print(f"done and saved {formulation}")
+
+
 def generate_and_save_model_performance(number_of_parcels, path_data, r_s_id=None, formulation="GEM"):
 
     if formulation == "EDR-vertex":
@@ -313,7 +401,7 @@ def generate_and_save_model_performance(number_of_parcels, path_data, r_s_id=Non
         return distance_atlas_generate_and_save(path_data, number_of_parcels=number_of_parcels, repetition_id=r_s_id)
 
     elif formulation == "MI":
-        return bablulh
+        return matching_index_generate_and_save(path_data, number_of_parcels=number_of_parcels, repetition_id=r_s_id)
     
     from demo_human_parcellated import get_human_parcellated_parameters, get_human_high_res_surface_and_parcellated_connectome, load_human_parcellated_modes
 
@@ -429,8 +517,8 @@ if __name__ == "__main__":
         # Manual input here instead of call from command line 
         # formulation = "GEM"
         # formulation = "EDR-vertex"
-        formulation = "distance-atlas"
-        # formulation = "MI"
+        # formulation = "distance-atlas"
+        formulation = "MI"
         
     generate_and_save_model_performance(number_of_parcels, path_data, r_s_id, formulation)
 
