@@ -200,7 +200,7 @@ def EDR_generate_and_save(path_data, task_id, number_of_parcels=300):
 
     print(f"current_hypothesis :{current_hypothesis}")
 
-    path_base_save = f"/{cwd}/data/results/human_parcellated/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation}"
+    path_base_save = f"/{cwd}/data/results/human_parcellated/Schaefer{number_of_parcels}/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation}"
     if not os.path.exists(path_base_save):
         os.makedirs(path_base_save)
 
@@ -276,7 +276,7 @@ def distance_atlas_generate_and_save(path_data, number_of_parcels, repetition_id
 
     print(f"current_hypothesis :{current_hypothesis}")
 
-    path_base_save = f"/{cwd}/data/results/human_parcellated/{connectome_type}_formulation_{formulation}"
+    path_base_save = f"/{cwd}/data/results/human_parcellated/Schaefer{number_of_parcels}/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation}"
     if not os.path.exists(path_base_save):
         os.makedirs(path_base_save)
 
@@ -352,7 +352,7 @@ def matching_index_generate_and_save(path_data, number_of_parcels, repetition_id
 
     print(f"current_hypothesis :{current_hypothesis}")
 
-    path_base_save = f"/{cwd}/data/results/human_parcellated/{connectome_type}_formulation_{formulation}"
+    path_base_save = f"/{cwd}/data/results/human_parcellated/Schaefer{number_of_parcels}/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation}"
     if not os.path.exists(path_base_save):
         os.makedirs(path_base_save)
 
@@ -516,9 +516,9 @@ if __name__ == "__main__":
     if formulation is None:
         # Manual input here instead of call from command line 
         # formulation = "GEM"
-        # formulation = "EDR-vertex"
+        formulation = "EDR-vertex"
         # formulation = "distance-atlas"
-        formulation = "MI"
+        # formulation = "MI"
         
     generate_and_save_model_performance(number_of_parcels, path_data, r_s_id, formulation)
 

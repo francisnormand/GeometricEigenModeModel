@@ -115,7 +115,7 @@ def downsample_high_resolution_structural_connectivity_to_atlas(high_resolution_
 
 def apply_threshold_to_match_densities(vertexSpaceSC, nEdgesVertexSpace, idxes):
 
-    vertexSpaceSC_thresholded = np.zeros((vertexSpaceSC.shape[0],vertexSpaceSC.shape[0]))
+    vertexSpaceSC_thresholded = np.zeros((vertexSpaceSC.shape[0], vertexSpaceSC.shape[0]))
     vertexSpaceSC_idxes = vertexSpaceSC[idxes]
     sorted_idx = np.argsort(vertexSpaceSC_idxes)[::-1]
 
@@ -389,13 +389,12 @@ def get_human_empirical_parcellated_connectome(path, target_density=0.1, number_
         extension_connectome = f"from_32k_raw_template_connectome_Schaefer{number_of_parcels}.npy"
   
     empirical_parcel_connectivity = np.load(f"{path}/Schaefer{number_of_parcels}/{extension_connectome}")
+
     idxes_parcels = np.triu_indices(empirical_parcel_connectivity.shape[0], k=1)
 
     n_edges_threshold = int(target_density * len(idxes_parcels[0]))
-    empirical_parcel_connectivity = apply_threshold_to_match_densities(empirical_parcel_connectivity, n_edges_threshold, idxes_parcels)
+    empirical_parcel_connectivity = threshold_symmetric_matrix_to_density(empirical_parcel_connectivity, idxes_parcels, target_density)
    
-    np.fill_diagonal(empirical_parcel_connectivity, 0)
-
     empirical_parcel_connectivity /= np.max(empirical_parcel_connectivity)
 
     n_edges_empirical_parcel = len(np.nonzero(empirical_parcel_connectivity[idxes_parcels])[0])

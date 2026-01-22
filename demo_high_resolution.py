@@ -380,7 +380,7 @@ def visualize_GEM_human_vertex_results(plot_connectivity_matrices=False):
     geometric_model = generate_high_res_GEM_humans(best_r_s, best_k, emodes_geo, evals_geo, target_density, idxes_vertex, resampling_weights)
     
     if plot_connectivity_matrices == True:
-        utilities.plotConnectivity(geometric_model, idxes_vertex, figsize=(13,11), original_cmap=cmap_, show_cbar=True)
+        utilities.plotConnectivity(geometric_model, idxes_vertex, figsize=(13,11), original_cmap=cmap, show_cbar=True)
         plt.title("GEM")
         plt.show()
 

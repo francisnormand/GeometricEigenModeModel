@@ -6,11 +6,11 @@ import sys
 import os
 import json
 import subprocess
-# from connectome_models import generate_high_res_GEM_humans, generate_high_res_LBO_humans, generate_EDR_vertex_model, generate_random_vertex_model
 from network_measures_and_statistics import compute_node_properties
 import matplotlib.pyplot as plt
 import networkx as nx
 import pandas as pd
+import connectome_models
 
 def generate_slurm_script(num_tasks, script_path, formulation):
     """ Generate the SLURM script for the job array. """
@@ -32,6 +32,7 @@ conda activate {conda_env_name}
 
 # Execute the Python script with the array index and arguments
 python {script_path} --r_s_id $SLURM_ARRAY_TASK_ID --formulation {formulation} --path_data {path_data}
+echo "Done"
 """
     return slurm_script
 
@@ -72,6 +73,7 @@ source {env_path}/bin/activate
 conda activate {conda_env_name}
 
 python {script_path} --r_s_id $SLURM_ARRAY_TASK_ID --formulation {formulation} --path_data {path_data}
+echo "Done"
 """
     return "\n".join(headers) + body
 
@@ -199,7 +201,7 @@ def get_human_high_res_surface_and_parcellated_connectome(path_data, number_of_p
     return (surface, surface_path), cortex_mask_array, empirical_connectome
 
 def get_human_parcellated_EDR_parameters(number_of_parcels=300):
-    
+
     eta_prob_connection_array = np.linspace(0.05, 0.2, 100)
     eta_weights_array = np.linspace(-0.1, 0.1, 100)
 
@@ -224,10 +226,10 @@ def optimize_and_save_human_parcellated_results(number_of_parcels=300):
     use_job_array = True 
     # use_job_array = False
 
-    formulation = "GEM"
+    # formulation = "GEM"
     # formulation = "EDR-vertex"
     # formulation = "distance-atlas" 
-    # formulation = "MI"
+    formulation = "MI"
 
     
     r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, fixed_vertex_threshold_density, resampling_weights = get_human_parcellated_parameters(number_of_parcels)
@@ -274,6 +276,418 @@ def optimize_and_save_human_parcellated_results(number_of_parcels=300):
             generate_and_save_model_performance(path_data, r_s_id=job_id, formulation=formulation)
 
 
+def visualize_GEM_human_parcellated_results(number_of_parcels, plot_connectivity_matrices=True):
+    """
+    Visualize scatter plots for the GEM performance.
+    """
+
+    lump = False
+
+    cmap = utilities.get_colormap()
+
+    color_optimized = cmap(0.8)
+    color_not_optimized = color_optimized
+
+    lump = False ## Fixed. Will override previous files if changed.
+
+    human_parcellated_parameters = get_human_parcellated_parameters(number_of_parcels)
+    r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, fixed_vertex_threshold_density, resampling_weights = human_parcellated_parameters
+
+    (surface, _), cortex_mask_array, empirical_parcel_connectivity = get_human_high_res_surface_and_parcellated_connectome(path_data, number_of_parcels, human_parcellated_parameters)
+    
+    formulation = "GEM"
+
+    directory = f"/{cwd}/data/results/human_parcellated/Schaefer{number_of_parcels}/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation}"
+    k_range = np.array([k_ for k_ in range(2, 200)])
+
+    network_measures = ["degree", "true_positive_rate", "degreeBinary", "spearman_union_weights", "ranked_weights_strength", "node connection distance", "clustering"]
+    
+    scatter_measures = ["degreeBinary", "common_weights", "ranked_weights_strength", "node connection distance", "clustering"]
+
+    optimization_metric_list = ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]
+
+    measure_colors = {
+    measure: (color_optimized if measure in optimization_metric_list or measure=="common_weights" else color_not_optimized)
+    for measure in scatter_measures
+    }
+
+    dimension_files = (len(r_s_values_list), len(k_range))
+
+    heatmaps_dict, args_optimal = utilities.grab_human_vertex_heatmaps(optimization_metric_list, directory, network_measures, dimension_files, r_s_values_list, formulation, target_density, connectome_type, fwhm, plot_all=False, plot_opt=False)
+    # plt.show() # set the arguments above to 'True' to visualize optimization landscape
+
+    print()
+    print("optimized network measures")
+    for net_measure in network_measures:
+        print(net_measure, f"opt score={heatmaps_dict[net_measure][args_optimal]}")
+    print()
+
+    best_r_s = r_s_values_list[args_optimal[0][0]]
+    best_k = k_range[args_optimal[1][0]]
+
+    print()
+    print("optimized r_s = ", best_r_s)
+    print("optimized k = ", best_k)
+    print()
+
+    if cortex_mask ==True:
+        idxes_cortex = np.where(cortex_mask_array == 1)[0]
+    
+    else:
+        cortex_mask_array = None
+    
+    evals_geo, emodes_geo = load_human_parcellated_modes(path_data, number_of_parcels, lump, cortex_mask)
+
+    emodes_geo = emodes_geo[:, 0:k_range.max()+1]
+    evals_geo = evals_geo[0:k_range.max()+1]
+
+    vertices = surface.v
+
+    if cortex_mask ==True:
+        emodes_geo = emodes_geo[idxes_cortex, :]
+        vertices = vertices[idxes_cortex, :]
+    
+    distances, centroids = utilities.get_parcellated_human_centroids(number_of_parcels)
+
+    n_vertices = emodes_geo.shape[0]
+    idxes_vertex = np.triu_indices(n_vertices, k=1)
+
+    n_nodes = empirical_parcel_connectivity.shape[0]
+    idxes_parcel = np.triu_indices(n_nodes, k=1)
+
+    empirical_parcel_connectivity_idxes = empirical_parcel_connectivity[idxes_parcel]
+    empirical_node_properties_dict = compute_node_properties(network_measures, empirical_parcel_connectivity, distances)
+
+    empirical_connectome_binary = (empirical_parcel_connectivity > 0).astype(int)
+    n_edges_parcel_empirical = len(np.nonzero(empirical_parcel_connectivity_idxes)[0])
+
+    if plot_connectivity_matrices == True:
+        utilities.plotConnectivity(empirical_parcel_connectivity, idxes_parcel, figsize=(13,11), original_cmap=cmap, show_cbar=True)
+        plt.title("Empirical parcel connectome")
+        # plt.show()
+
+    characteristic_matrix = np.load(f"{path_data}/Schaefer{number_of_parcels}/characteristic_matrix_to_SC{number_of_parcels}.npy")                                            
+    geometric_model = connectome_models.generate_parcellated_GEM_humans(best_r_s, best_k, emodes_geo, evals_geo, idxes_vertex, idxes_parcel, characteristic_matrix, fixed_vertex_threshold_density, n_edges_parcel_empirical, resampling_weights)
+    
+    if plot_connectivity_matrices == True:
+        utilities.plotConnectivity(geometric_model, idxes_parcel, figsize=(13,11), original_cmap=cmap, show_cbar=True)
+        plt.title("GEM")
+        # plt.show()
+
+    geometric_model_idxes = geometric_model[idxes_parcel]
+    node_properties_model_dict = compute_node_properties(scatter_measures, geometric_model, distances)
+
+    scatter_node_size = 70
+    scatter_edge_size = 35
+
+    alpha_node = 0.8
+    alpha_edge = 0.6
+
+    utilities.plot_human_vertex_scatter_splots(scatter_measures, geometric_model, geometric_model_idxes, empirical_parcel_connectivity_idxes, node_properties_model_dict, empirical_node_properties_dict, distances, scatter_node_size=scatter_node_size, scatter_edge_size=scatter_edge_size, alpha_node=alpha_node, alpha_edge=alpha_edge, measure_colors=measure_colors)
+    plt.show()
+
+def generate_human_parcellated_comparison_results(number_of_parcels, which_results):
+    """
+    Generate and save human atlas-lvel model results.
+
+    Models are generated one at a time.
+    Stochastic models (EDR-vertex, Distance-atlas and Matching-index (MI)) are generated 100 times each.
+    """
+
+    list_of_number_of_communities = [3, 4, 5 , 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+
+    from human_vertex_models import get_human_vertex_results
+
+    formulation_GEM = "GEM"
+    formulation_EDR_vertex = "EDR-vertex"
+    formulation_distance_atlas = "distance_atlas"
+    formulation_MI = "MI"
+    formulation_Random = "Random"
+    
+    # Input (generate optimized results for one model at a time)
+    ############################################################
+    formulation_generate = formulation_GEM
+    # formulation_generate = formulation_EDR_vertex
+    # formulation_generate = formulation_distance_atlas
+    # formulation_generate = formulation_MI
+    # formulation_generate = formulation_Random
+    ############################################################
+
+    lump = False
+
+    human_parcellated_parameters = get_human_parcellated_parameters(number_of_parcels)
+    r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, fixed_vertex_threshold_density, resampling_weights = human_parcellated_parameters
+
+    (surface, _), cortex_mask_array, empirical_parcel_connectivity = get_human_high_res_surface_and_parcellated_connectome(path_data, number_of_parcels, human_parcellated_parameters)
+
+    if number_of_parcels == 300:
+        target_density = 0.1
+
+    k_range = np.array([k_ for k_ in range(2, 200)])
+
+    network_measures = ["degree", "true_positive_rate", "degreeBinary", "spearman_union_weights", "ranked_weights_strength", "node connection distance", "clustering"]
+    network_measures_binary = [ "true_positive_rate", "degreeBinary", "node connection distance", "clustering"]
+    
+
+    ### Standard optimization metric used in the paper
+    optimization_metric_list = ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]
+    optimization_metric_list_binary = ["degreeBinary", "true_positive_rate"]
+    
+    opt_metric_str = "_".join(optimization_metric_list)
+    opt_metric_str_binary = "_".join(optimization_metric_list_binary)
+
+    print(opt_metric_str, "network measures in the objective function")
+
+    if cortex_mask ==True:
+        idxes_cortex = np.where(cortex_mask_array == 1)[0]
+    
+    else:
+        cortex_mask_array = None
+    
+    evals_geo, emodes_geo = load_human_parcellated_modes(path_data, number_of_parcels, lump, cortex_mask)
+
+    emodes_geo = emodes_geo[:, 0:k_range.max()+1]
+    evals_geo = evals_geo[0:k_range.max()+1]
+
+    vertices = surface.v
+
+    if cortex_mask ==True:
+        emodes_geo = emodes_geo[idxes_cortex, :]
+        vertices = vertices[idxes_cortex, :]
+
+    
+    n_vertices = emodes_geo.shape[0]
+    idxes_vertex = np.triu_indices(n_vertices, k=1)
+    
+    if which_results == "main":        
+        dict_results = {net_measure:[] for net_measure in network_measures}
+    elif which_results == "modularity":
+        dict_results = {n_com:[] for n_com in list_of_number_of_communities}
+    elif which_results == "spectral":
+        list_results = []
+
+    total_possible_connections = len(idxes_vertex[0])
+
+    distances = pdist(vertices)
+
+    empirical_vertex_connectivity_idxes = empirical_vertex_connectivity[idxes_vertex]
+    empirical_node_properties_dict = compute_node_properties(network_measures, empirical_vertex_connectivity, distances)
+    empirical_connectome_binary = (empirical_vertex_connectivity > 0).astype(int)
+    n_edges_vertex_empirical = len(np.nonzero(empirical_vertex_connectivity_idxes)[0])
+
+    if which_results == "modularity":
+        G_empirical = nx.from_numpy_array(empirical_connectome_binary)
+        empirical_partition_dict = utilities.efficient_newman_spectral_communities(G_empirical, list_of_number_of_communities)
+        empirical_labels_dict = utilities.labelsDict(G_empirical, empirical_partition_dict)
+        empirical_partitions_set_dict = utilities.getDictOfPartitionsSet(empirical_partition_dict)
+    
+    elif which_results == "spectral":
+        empirical_spectrum = utilities.compute_eigenspectrum(empirical_connectome_binary)
+
+    directory = f"{cwd}/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation_generate}"
+
+    if formulation_generate == formulation_GEM:
+        dimension_files_geo = (len(r_s_values_list), len(k_range))
+        heatmaps_dict, args_optimal = utilities.grab_human_vertex_heatmaps(optimization_metric_list, directory, network_measures, dimension_files_geo, r_s_values_list, formulation_generate, target_density, connectome_type, fwhm)    
+        
+        best_r_s = r_s_values_list[args_optimal[0][0]]
+        best_k = k_range[args_optimal[1][0]]
+        best_params = (best_r_s, best_k)
+        
+        print(f"r_s={best_r_s}, k={best_k}")
+        model = generate_high_res_GEM_humans(best_r_s, best_k, emodes_geo, evals_geo, target_density, idxes_vertex, resampling_weights)
+        model_idxes = model[idxes_vertex]
+        
+        if which_results == "main":
+            results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
+            
+            for net_measure in network_measures:
+                dict_results[net_measure].append(results[net_measure])
+
+        elif which_results == "modularity":
+            model = (model > 0).astype(int)
+            G_model = nx.from_numpy_array(model)
+            model_partition_dict = utilities.efficient_newman_spectral_communities(G_model, list_of_number_of_communities)
+            model_labels_dict = utilities.labelsDict(G_model, model_partition_dict)
+            nvi_dict = utilities.getDictOfNVI(empirical_labels_dict, model_labels_dict)
+            for n_com  in nvi_dict.keys():
+                dict_results[n_com].append(nvi_dict[n_com])
+
+        elif which_results == "spectral":
+            model = (model > 0).astype(int)
+            model_spectrum = utilities.compute_eigenspectrum(model)
+            spectral_distance = utilities.compute_spectral_distance(empirical_spectrum, model_spectrum)
+            list_results.append(spectral_distance[0])
+        
+
+    elif formulation_generate == formulation_LBO:
+
+        heatmaps_dict, args_optimal = utilities.grab_human_vertex_LBO_heatmaps(optimization_metric_list, directory, network_measures, formulation_generate, target_density, connectome_type, fwhm)    
+        best_k = k_range[args_optimal[0][0]]
+
+        best_params = (best_k)
+        print(f" LBO, best k={best_k}")
+
+        model = generate_high_res_LBO_humans(None, best_k, emodes_geo, evals_geo, target_density, idxes_vertex, resampling_weights)
+        model_idxes = model[idxes_vertex]
+        
+        if which_results == "main":
+            results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
+            
+            for net_measure in network_measures:
+                dict_results[net_measure].append(results[net_measure])
+
+        elif which_results == "modularity":
+            model = (model > 0).astype(int)
+            G_model = nx.from_numpy_array(model)
+            model_partition_dict = utilities.efficient_newman_spectral_communities(G_model, list_of_number_of_communities)
+            model_labels_dict = utilities.labelsDict(G_model, model_partition_dict)
+            nvi_dict = utilities.getDictOfNVI(empirical_labels_dict, model_labels_dict)
+            for n_com  in nvi_dict.keys():
+                dict_results[n_com].append(nvi_dict[n_com])
+
+        elif which_results == "spectral":
+            model = (model > 0).astype(int)
+            model_spectrum = utilities.compute_eigenspectrum(model)
+            spectral_distance = utilities.compute_spectral_distance(empirical_spectrum, model_spectrum)
+            list_results.append(spectral_distance[0])
+
+
+    elif formulation_generate == formulation_permuted_evals:
+
+        dimension_files_geo = (len(r_s_values_list), len(k_range))
+        # Loading the results from formulation_GEM.
+        directory_exception = f"{cwd}/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation_GEM}"
+        heatmaps_dict, args_optimal = utilities.grab_human_vertex_heatmaps(optimization_metric_list, directory_exception, network_measures, dimension_files_geo, r_s_values_list, formulation_GEM, target_density, connectome_type, fwhm)    
+        
+        best_r_s = r_s_values_list[args_optimal[0][0]]
+        best_k = k_range[args_optimal[1][0]]
+        best_params = 0
+
+        print(best_k, "best k ")
+        print(best_r_s, "best r_s ")
+
+        evals_geo_k = evals_geo[0:best_k]
+        number_of_repetitions = 100
+
+        for repet_ in range(number_of_repetitions):
+            print(repet_, "repet shuffled evals")
+            evals_geo_k_copy = np.copy(evals_geo_k) 
+            np.random.shuffle(evals_geo_k_copy)
+
+            model = generate_high_res_GEM_humans(best_r_s, best_k, emodes_geo, evals_geo_k_copy, target_density, idxes_vertex, resampling_weights)
+            model_idxes = model[idxes_vertex]
+            
+            if which_results == "main":
+                results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
+            
+                for net_measure in network_measures:
+                    dict_results[net_measure].append(results[net_measure])
+
+            elif which_results == "modularity":
+                model = (model > 0).astype(int)
+                G_model = nx.from_numpy_array(model)
+                model_partition_dict = utilities.efficient_newman_spectral_communities(G_model, list_of_number_of_communities)
+                model_labels_dict = utilities.labelsDict(G_model, model_partition_dict)
+                nvi_dict = utilities.getDictOfNVI(empirical_labels_dict, model_labels_dict)
+                for n_com  in nvi_dict.keys():
+                    dict_results[n_com].append(nvi_dict[n_com])
+
+            elif which_results == "spectral":
+                model = (model > 0).astype(int)
+                model_spectrum = utilities.compute_eigenspectrum(model)
+                spectral_distance = utilities.compute_spectral_distance(empirical_spectrum, model_spectrum)
+                list_results.append(spectral_distance[0])
+
+
+    elif formulation_generate == formulation_EDR:
+        eta_prob_connection_array, eta_weights_array = get_human_vertex_EDR_parameters()
+        dimension_files_EDR = (len(eta_prob_connection_array), len(eta_weights_array))
+
+        n_EDR_vertex_repet = 10
+        number_of_repetitions = 100
+        moving_sum_average_heatmap = 0
+
+        for repet_id in range(n_EDR_vertex_repet):
+            print(repet_id, "repet_id")
+            heatmaps_dict, average_heatmap = utilities.grab_human_EDR_heatmaps(repet_id, optimization_metric_list, directory, network_measures, dimension_files_EDR, eta_prob_connection_array, formulation_generate, target_density, connectome_type, fwhm, plot_heatmaps=True)    
+            plt.show()
+            moving_sum_average_heatmap += average_heatmap
+            
+        moving_sum_average_heatmap /= n_EDR_vertex_repet
+        args_optimal = np.where(moving_sum_average_heatmap == np.max(moving_sum_average_heatmap))
+        best_eta_prob, best_eta_weights = eta_prob_connection_array[args_optimal[0][0]], eta_weights_array[args_optimal[1][0]]
+
+        best_params = (best_eta_prob, best_eta_weights)
+        for repet_ in range(number_of_repetitions):
+            print(repet_, f"repet EDR")
+            model = generate_EDR_vertex_model(best_eta_prob, best_eta_weights, distances, idxes_vertex, n_vertices, n_edges_vertex_empirical, total_possible_connections, resampling_weights)
+            model_idxes = model[idxes_vertex]
+            
+            if which_results == "main":
+                results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
+            
+                for net_measure in network_measures:
+                    dict_results[net_measure].append(results[net_measure])
+
+            elif which_results == "modularity":
+                model = (model > 0).astype(int)
+                G_model = nx.from_numpy_array(model)
+                model_partition_dict = utilities.efficient_newman_spectral_communities(G_model, list_of_number_of_communities)
+                model_labels_dict = utilities.labelsDict(G_model, model_partition_dict)
+                nvi_dict = utilities.getDictOfNVI(empirical_labels_dict, model_labels_dict)
+                for n_com  in nvi_dict.keys():
+                    dict_results[n_com].append(nvi_dict[n_com])
+
+            elif which_results == "spectral":
+                model = (model > 0).astype(int)
+                model_spectrum = utilities.compute_eigenspectrum(model)
+                spectral_distance = utilities.compute_spectral_distance(empirical_spectrum, model_spectrum)
+                list_results.append(spectral_distance[0])
+
+    elif formulation_generate == formulation_Random:
+        number_of_repetitions = 100
+        best_params = 0
+        for repet_ in range(number_of_repetitions):
+            print(repet_, f"repet Random")
+            model = generate_random_vertex_model(n_vertices, total_possible_connections, n_edges_vertex_empirical, idxes_vertex, weighted=True)
+            model_idxes = model[idxes_vertex]
+            
+            if which_results == "main":
+                results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
+            
+                for net_measure in network_measures:
+                    dict_results[net_measure].append(results[net_measure])
+
+            elif which_results == "modularity":
+                model = (model > 0).astype(int)
+                G_model = nx.from_numpy_array(model)
+                model_partition_dict = utilities.efficient_newman_spectral_communities(G_model, list_of_number_of_communities)
+                model_labels_dict = utilities.labelsDict(G_model, model_partition_dict)
+                nvi_dict = utilities.getDictOfNVI(empirical_labels_dict, model_labels_dict)
+                for n_com  in nvi_dict.keys():
+                    dict_results[n_com].append(nvi_dict[n_com])
+
+            elif which_results == "spectral":
+                model = (model > 0).astype(int)
+                model_spectrum = utilities.compute_eigenspectrum(model)
+                spectral_distance = utilities.compute_spectral_distance(empirical_spectrum, model_spectrum)
+                list_results.append(spectral_distance[0])
+
+
+    directory_save = directory + f"/optimized_for_{opt_metric_str}"
+    if not os.path.exists(directory_save):
+        os.makedirs(directory_save)
+    
+    if which_results == "spectral":
+        np.save(directory_save+ f"/{which_results}_optimized_results", list_results)
+    else:
+        np.save(directory_save+ f"/{which_results}_optimized_results", dict_results, allow_pickle=True)
+
+    if which_results == "main":
+        np.save(directory_save+ "/best_params", np.array(best_params))
+
+
 # Current working director
 cwd = os.getcwd()
 
@@ -300,21 +714,21 @@ def mainFunction():
     number_of_parcels = 300
 
     # 1. Generate the geometric eigenmodes
-    generate_geometric_modes(number_of_parcels)
+    # generate_geometric_modes(number_of_parcels)
 
     # 2. Optimize the GEM (explore parameters landscape)
     # optimize_and_save_human_parcellated_results(number_of_parcels)
     # print()
 
     #3. Visualize performance
-    # visualize_GEM_human_parcellated_results()
+    # visualize_GEM_human_parcellated_results(number_of_parcels)
 
     # results = "main"
     # results = "modularity"
     # results = "spectral"
     
     #4. Generate benchmark models
-    # generate_human_parcellated_comparison_results(which_results=results)
+    # generate_human_parcellated_comparison_results(number_of_parcels, which_results=results)
 
     #5. Compare GEM performance with other models
     # compare_human_parcellated_models(which_results=results)
