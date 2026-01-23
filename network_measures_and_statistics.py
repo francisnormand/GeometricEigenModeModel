@@ -15,7 +15,43 @@ from scipy.linalg import eigh
 import re
 from scipy.sparse import csr_matrix
 
+@njit(parallel=True)
+def rankdata_numba(a):
+    n = len(a)
+    ivec = np.argsort(a)
+    svec = np.empty(n, dtype=np.int64)
+    svec[ivec] = np.arange(n)
+    rvec = np.empty(n, dtype=np.float64)
 
+    i = 0
+    while i < n:
+        j = i
+        while j < n - 1 and a[ivec[j]] == a[ivec[j + 1]]:
+            j += 1
+        rank = 0.5 * (i + j + 1)
+        for k in range(i, j + 1):
+            rvec[ivec[k]] = rank
+        i = j + 1
+    return rvec
+
+@jit(nopython=True, fastmath=True)
+def fast_spearmanr_numba(x, y):
+    x_ranked = rankdata_numba(x)
+    y_ranked = rankdata_numba(y)
+    
+    return fast_pearsonr(x_ranked, y_ranked)
+
+
+@njit(parallel=True)
+def fast_pearsonr(x, y):
+    x = x - np.mean(x)
+    y = y - np.mean(y)
+    
+    numerator = np.sum(x * y)
+    denominator = np.sqrt(np.sum(x ** 2)) * np.sqrt(np.sum(y ** 2))
+    
+    return numerator / denominator
+    
 def to_graph_tool(adj):
     num_nodes = adj.shape[0]  # Number of nodes
     g = graph_tool.Graph(directed=False)
@@ -68,6 +104,8 @@ def assignWeightBasedOnRank(weighted_matrix, idxes):
 
     return rank_weighted_matrix
 
+def compute_true_positive_rate(vertexSpaceSC_thresholded_binary_idxes, idxes_edges_empirical):
+    return len(np.where(vertexSpaceSC_thresholded_binary_idxes[idxes_edges_empirical] != 0)[0])/len(idxes_edges_empirical)
 
 def compute_node_properties(node_measures, connectivity_matrix, distances):
     

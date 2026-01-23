@@ -21,6 +21,7 @@ from scipy.sparse.linalg import eigsh
 import seaborn as sns
 from scipy.linalg import eig
 import pandas as pd
+from network_measures_and_statistics import compute_node_properties, compute_true_positive_rate, fast_spearmanr_numba, fast_pearsonr
 
 cwd = os.getcwd()
 
@@ -552,6 +553,7 @@ def grab_human_vertex_heatmaps(optimization_metric_list, directory, network_meas
 
     return heatmaps_dict, args_optimal
 
+
 def grab_human_vertex_LBO_heatmaps(optimization_metric_list, directory, network_measures, formulation, target_density, connectome_type, fwhm=None):
 
     heatmaps_dict = {}
@@ -634,6 +636,63 @@ def grab_human_EDR_heatmaps(repet_id, optimization_metric_list, directory, netwo
         args_optimal = np.where(average_heatmap == np.max(average_heatmap))
 
     return heatmaps_dict, average_heatmap
+
+
+def grab_human_distance_atlas_or_MI_heatmaps(optimization_metric_list, directory, formulation, target_density, connectome_type, fwhm, repetition_id, plot_heatmaps=False):
+    
+    heatmaps_dict = {}
+    missings = []
+    for idx_, network_measure_ in enumerate(optimization_metric_list):
+
+        current_hypothesis = f"formulation={formulation}_fwhm={fwhm}_target_density={target_density}_repetition_id_{repetition_id}"
+        full_path = directory + f"/{network_measure_}_{current_hypothesis}.npy"
+        
+        if os.path.exists(full_path):
+            heatMap_measure = np.load(full_path)
+        else:
+            print(full_path, "does not exists")
+            sys.exit()
+            missings.append(idx_eta_prob)
+        heatmaps_dict[network_measure_] = heatMap_measure
+
+    if len(missings) > 0:
+        print(missings, "missings")    
+    
+    list_of_heatmaps = []
+    for optimization_metric in optimization_metric_list:
+        list_of_heatmaps.append(heatmaps_dict[optimization_metric])
+
+    average_heatmap = np.mean(np.array(list_of_heatmaps), axis=0)
+
+    return average_heatmap, heatmaps_dict
+
+
+def get_performance_results(network_measures, vertexModelSC, vertexModelSC_thresholded_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances):
+
+    node_properties_model_dict = compute_node_properties(network_measures, vertexModelSC, distances)
+
+    results_dict = {net_measure:0 for net_measure in network_measures}
+    
+    idxes_edges_empirical = np.nonzero(empirical_vertex_connectivity_idxes)[0]
+
+    vertexModelSC_binary = (vertexModelSC > 0).astype(int)
+
+    idxes_vertex = np.triu_indices(vertexModelSC.shape[0], k=1)
+
+    empirical_connectome_binary_idxes = (empirical_vertex_connectivity_idxes > 0).astype(int)
+
+    for measure_ in network_measures:
+        if measure_ == "spearman_union_weights":
+            idxes_union = np.where((vertexModelSC_thresholded_idxes != 0) | (empirical_vertex_connectivity_idxes != 0))[0]
+            results_dict[measure_] = fast_spearmanr_numba(vertexModelSC_thresholded_idxes[idxes_union], empirical_vertex_connectivity_idxes[idxes_union])
+        
+        elif measure_ == "true_positive_rate":
+            results_dict[measure_] = compute_true_positive_rate(vertexModelSC_thresholded_idxes, idxes_edges_empirical)
+        
+        else:    
+            results_dict[measure_] = spearmanr(node_properties_model_dict[measure_], empirical_node_properties_dict[measure_])[0]
+
+    return results_dict
 
 def plotConnectivity(connectivity_matrix, idxes_, title_="none", binary=False, figsize=False, original_cmap=plt.cm.cool, show_cbar=False):
 

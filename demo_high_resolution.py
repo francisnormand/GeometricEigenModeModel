@@ -448,7 +448,7 @@ def generate_human_vertex_comparison_results(which_results="main"):
 
     list_of_number_of_communities = [3, 4, 5 , 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
-    from human_vertex_models import get_human_vertex_results
+    from utilities import get_performance_results
 
     formulation_GEM = "GEM"
     formulation_LBO = "LBO"
@@ -548,7 +548,7 @@ def generate_human_vertex_comparison_results(which_results="main"):
         model_idxes = model[idxes_vertex]
         
         if which_results == "main":
-            results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
+            results = get_performance_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
             
             for net_measure in network_measures:
                 dict_results[net_measure].append(results[net_measure])
@@ -581,7 +581,7 @@ def generate_human_vertex_comparison_results(which_results="main"):
         model_idxes = model[idxes_vertex]
         
         if which_results == "main":
-            results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
+            results = get_performance_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
             
             for net_measure in network_measures:
                 dict_results[net_measure].append(results[net_measure])
@@ -628,7 +628,7 @@ def generate_human_vertex_comparison_results(which_results="main"):
             model_idxes = model[idxes_vertex]
             
             if which_results == "main":
-                results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
+                results = get_performance_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
             
                 for net_measure in network_measures:
                     dict_results[net_measure].append(results[net_measure])
@@ -659,8 +659,7 @@ def generate_human_vertex_comparison_results(which_results="main"):
 
         for repet_id in range(n_EDR_vertex_repet):
             print(repet_id, "repet_id")
-            heatmaps_dict, average_heatmap = utilities.grab_human_EDR_heatmaps(repet_id, optimization_metric_list, directory, network_measures, dimension_files_EDR, eta_prob_connection_array, formulation_generate, target_density, connectome_type, fwhm, plot_heatmaps=True)    
-            plt.show()
+            heatmaps_dict, average_heatmap = utilities.grab_human_EDR_heatmaps(repet_id, optimization_metric_list, directory, network_measures, dimension_files_EDR, eta_prob_connection_array, formulation_generate, target_density, connectome_type, fwhm, plot_heatmaps=False)    
             moving_sum_average_heatmap += average_heatmap
             
         moving_sum_average_heatmap /= n_EDR_vertex_repet
@@ -674,7 +673,7 @@ def generate_human_vertex_comparison_results(which_results="main"):
             model_idxes = model[idxes_vertex]
             
             if which_results == "main":
-                results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
+                results = get_performance_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
             
                 for net_measure in network_measures:
                     dict_results[net_measure].append(results[net_measure])
@@ -703,7 +702,7 @@ def generate_human_vertex_comparison_results(which_results="main"):
             model_idxes = model[idxes_vertex]
             
             if which_results == "main":
-                results = get_human_vertex_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
+                results = get_performance_results(network_measures, model, model_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances)
             
                 for net_measure in network_measures:
                     dict_results[net_measure].append(results[net_measure])

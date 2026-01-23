@@ -121,7 +121,7 @@ def generate_EDR_vertex_model(eta_prob_connection, eta_w, distances, idxes_verte
     vertexModelSC += vertexModelSC.T
 
     if resampling_weights  == "gaussian":
-        vertexModelSC = resample_matrix(vertexModelSC)
+        vertexModelSC = utilities.resample_matrix(vertexModelSC)
 
     vertexModelSC /= np.max(vertexModelSC)
 
@@ -145,7 +145,7 @@ def generate_EDR_vertex_parcellated_model(eta_prob_connection, eta_w, distances_
     vertexModelSC += vertexModelSC.T
 
     if resampling_weights  == "gaussian":
-        vertexModelSC = resample_matrix(vertexModelSC)
+        vertexModelSC = utilities.resample_matrix(vertexModelSC)
 
     modelSC = utilities.downsample_high_resolution_structural_connectivity_to_atlas(vertexModelSC, characteristic_matrix)
     modelSC = utilities.apply_threshold_to_match_densities(modelSC, n_edges_parcel_empirical, idxes_parcel)
@@ -277,3 +277,27 @@ def generate_random_vertex_model(n_vertices, total_possible_connections, n_conne
     vertexModelSC_thresholded += vertexModelSC_thresholded.T
 
     return vertexModelSC_thresholded
+
+def generate_random_parcellated_model(n_vertices, total_possible_connections, n_connections_vertex, idxes_vertex, characteristic_matrix, idxes_parcel, n_edges_empirical, resampling_weights, weighted=False):
+    idxe_random_edges = np.random.choice(total_possible_connections, size=n_connections_vertex, replace=False)
+    vertexModelSC_idxes = np.zeros(total_possible_connections)
+
+    if weighted == True:
+        vertexModelSC_idxes[idxe_random_edges] = np.random.uniform(0.01, 1, size=len(idxe_random_edges))
+    else:
+        vertexModelSC_idxes[idxe_random_edges] = 1
+
+    vertexModelSC_thresholded = np.zeros((n_vertices, n_vertices))
+    vertexModelSC_thresholded[idxes_vertex] = vertexModelSC_idxes
+    vertexModelSC_thresholded += vertexModelSC_thresholded.T
+
+    model_parcellated  = utilities.downsample_high_resolution_structural_connectivity_to_atlas(vertexModelSC_thresholded,
+                                                    characteristic_matrix)
+
+    model_parcellated_thresholded = utilities.apply_threshold_to_match_densities(model_parcellated, n_edges_empirical, idxes_parcel)
+    model_parcellated_thresholded /= np.max(model_parcellated_thresholded)
+
+    if resampling_weights  == "gaussian":
+        model_parcellated_thresholded = utilities.resample_matrix(model_parcellated_thresholded)
+
+    return model_parcellated_thresholded

@@ -6,53 +6,12 @@ from scipy.stats import pearsonr, spearmanr, rankdata
 import argparse
 from numba import njit, jit
 from scipy.stats import ks_2samp
-from network_measures_and_statistics import compute_node_properties
+from network_measures_and_statistics import compute_node_properties, compute_true_positive_rate, fast_spearmanr_numba, fast_pearsonr
 import connectome_models
 import utilities
 import time
 
 cwd = os.getcwd()
-
-def compute_true_positive_rate(vertexSpaceSC_thresholded_binary_idxes, idxes_edges_empirical):
-    return len(np.where(vertexSpaceSC_thresholded_binary_idxes[idxes_edges_empirical] != 0)[0])/len(idxes_edges_empirical)
-
-@njit(parallel=True)
-def rankdata_numba(a):
-    n = len(a)
-    ivec = np.argsort(a)
-    svec = np.empty(n, dtype=np.int64)
-    svec[ivec] = np.arange(n)
-    rvec = np.empty(n, dtype=np.float64)
-
-    i = 0
-    while i < n:
-        j = i
-        while j < n - 1 and a[ivec[j]] == a[ivec[j + 1]]:
-            j += 1
-        rank = 0.5 * (i + j + 1)
-        for k in range(i, j + 1):
-            rvec[ivec[k]] = rank
-        i = j + 1
-    return rvec
-
-@jit(nopython=True, fastmath=True)
-def fast_spearmanr_numba(x, y):
-    x_ranked = rankdata_numba(x)
-    y_ranked = rankdata_numba(y)
-    
-    return fast_pearsonr(x_ranked, y_ranked)
-
-
-@njit(parallel=True)
-def fast_pearsonr(x, y):
-    x = x - np.mean(x)
-    y = y - np.mean(y)
-    
-    numerator = np.sum(x * y)
-    denominator = np.sqrt(np.sum(x ** 2)) * np.sqrt(np.sum(y ** 2))
-    
-    return numerator / denominator
-
 
 def check_if_already_exists(network_measures, path_base_save, current_hypothesis):
     missing_measures = []
@@ -99,32 +58,6 @@ def compute_and_update_results(results_dict, k_idx, network_measures, vertexMode
             else:
                 results_dict[measure_][idx_gamma, k_idx] = spearmanr(node_properties_model_dict[measure_], empirical_node_properties_dict[measure_])[0]
 
-def get_human_vertex_results(network_measures, vertexModelSC, vertexModelSC_thresholded_idxes, empirical_vertex_connectivity_idxes, empirical_node_properties_dict, distances):
-
-    node_properties_model_dict = compute_node_properties(network_measures, vertexModelSC, distances)
-
-    results_dict = {net_measure:0 for net_measure in network_measures}
-    
-    idxes_edges_empirical = np.nonzero(empirical_vertex_connectivity_idxes)[0]
-
-    vertexModelSC_binary = (vertexModelSC > 0).astype(int)
-
-    idxes_vertex = np.triu_indices(vertexModelSC.shape[0], k=1)
-
-    empirical_connectome_binary_idxes = (empirical_vertex_connectivity_idxes > 0).astype(int)
-
-    for measure_ in network_measures:
-        if measure_ == "spearman_union_weights":
-            idxes_union = np.where((vertexModelSC_thresholded_idxes != 0) | (empirical_vertex_connectivity_idxes != 0))[0]
-            results_dict[measure_] = fast_spearmanr_numba(vertexModelSC_thresholded_idxes[idxes_union], empirical_vertex_connectivity_idxes[idxes_union])
-        
-        elif measure_ == "true_positive_rate":
-            results_dict[measure_] = compute_true_positive_rate(vertexModelSC_thresholded_idxes, idxes_edges_empirical)
-        
-        else:    
-            results_dict[measure_] = spearmanr(node_properties_model_dict[measure_], empirical_node_properties_dict[measure_])[0]
-
-    return results_dict
 
 def EDR_generate_and_save(path_data, task_id, number_of_parcels=300):
     """
@@ -252,7 +185,7 @@ def distance_atlas_generate_and_save(path_data, number_of_parcels, repetition_id
     from demo_human_parcellated import get_human_parcellated_parameters, get_human_high_res_surface_and_parcellated_connectome, get_human_parcellated_EDR_parameters
 
     human_parcellated_parameters = get_human_parcellated_parameters(number_of_parcels)
-    _, _, connectome_type, fwhm, target_density, _, _ = human_parcellated_parameters
+    _, _, connectome_type, fwhm, target_density, _, resampling_weights = human_parcellated_parameters
 
     (_, _), _, empirical_parcel_connectivity = get_human_high_res_surface_and_parcellated_connectome(path_data, number_of_parcels, human_parcellated_parameters)
 
@@ -328,7 +261,7 @@ def matching_index_generate_and_save(path_data, number_of_parcels, repetition_id
     from demo_human_parcellated import get_human_parcellated_parameters, get_human_high_res_surface_and_parcellated_connectome, get_human_parcellated_EDR_parameters
 
     human_parcellated_parameters = get_human_parcellated_parameters(number_of_parcels)
-    _, _, connectome_type, fwhm, target_density, _, _ = human_parcellated_parameters
+    _, _, connectome_type, fwhm, target_density, _, resampling_weights = human_parcellated_parameters
 
     (_, _), _, empirical_parcel_connectivity = get_human_high_res_surface_and_parcellated_connectome(path_data, number_of_parcels, human_parcellated_parameters)
 
@@ -376,9 +309,12 @@ def matching_index_generate_and_save(path_data, number_of_parcels, repetition_id
     empirical_node_properties_dict = compute_node_properties(network_measures, empirical_parcel_connectivity, distances)
     total_number_of_possible_edges = len(idxes_parcel[0])
 
+    # print(n_edges_parcel_empirical, "n_edges_parcel_empirical")
+
     for idx_gamma, gamma_i in enumerate(gamma):
         
         for idx_eta, eta_i in enumerate(eta):
+            # print(idx_eta, "idx eta")
 
             modelSC = connectome_models.generate_matching_index_model(eta_i, gamma_i, n_nodes, n_edges_parcel_empirical, distances, total_number_of_possible_edges, idxes_parcel, cost_rule)
             modelSC_idxes = modelSC[idxes_parcel]
@@ -516,9 +452,9 @@ if __name__ == "__main__":
     if formulation is None:
         # Manual input here instead of call from command line 
         # formulation = "GEM"
-        formulation = "EDR-vertex"
+        # formulation = "EDR-vertex"
         # formulation = "distance-atlas"
-        # formulation = "MI"
+        formulation = "MI"
         
     generate_and_save_model_performance(number_of_parcels, path_data, r_s_id, formulation)
 
