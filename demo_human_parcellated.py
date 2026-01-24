@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import pandas as pd
 import connectome_models
+from utilities import powerlawRule, exponentialRule
 
 def generate_slurm_script(num_tasks, script_path, formulation):
     """ Generate the SLURM script for the job array. """
@@ -403,7 +404,7 @@ def generate_human_parcellated_comparison_results(number_of_parcels, which_resul
 
     formulation_GEM = "GEM"
     formulation_EDR_vertex = "EDR-vertex"
-    formulation_distance_atlas = "distance_atlas"
+    formulation_distance_atlas = "distance-atlas"
     formulation_MI = "MI"
     formulation_Random = "Random"
     
@@ -411,9 +412,9 @@ def generate_human_parcellated_comparison_results(number_of_parcels, which_resul
     ############################################################
     # formulation_generate = formulation_GEM
     # formulation_generate = formulation_EDR_vertex
-    formulation_generate = formulation_distance_atlas
+    # formulation_generate = formulation_distance_atlas
     # formulation_generate = formulation_MI
-    # formulation_generate = formulation_Random
+    formulation_generate = formulation_Random
     ############################################################
 
     lump = False
@@ -439,7 +440,7 @@ def generate_human_parcellated_comparison_results(number_of_parcels, which_resul
     opt_metric_str = "_".join(optimization_metric_list)
     opt_metric_str_binary = "_".join(optimization_metric_list_binary)
 
-    print(opt_metric_str, "network measures in the objective function")
+    # print(opt_metric_str, "network measures in the objective function")
 
     if cortex_mask ==True:
         idxes_cortex = np.where(cortex_mask_array == 1)[0]
@@ -594,11 +595,11 @@ def generate_human_parcellated_comparison_results(number_of_parcels, which_resul
         
         best_eta_distance_atlas = eta_distance_atlas[args_optimal[0][0]]
 
-        cost_rule = geometricModels.powerlawRule
+        cost_rule = powerlawRule
         
         for repet_ in range(number_of_repetitions):
-            modelSC = connectome_models.generate_distance_atlas_model(best_eta_distance_atlas, n_nodes, n_edges_parcel_empirical, distances, idxes_parcel, cost_rule)
-            modelSC_idxes = modelSC[idxes_parcel]
+            model = connectome_models.generate_distance_atlas_model(best_eta_distance_atlas, n_nodes, n_edges_parcel_empirical, distances, idxes_parcel, cost_rule)
+            model_idxes = model[idxes_parcel]
 
             if which_results == "main":
                 results = get_performance_results(network_measures_binary, model, model_idxes, empirical_parcel_connectivity_idxes, empirical_node_properties_dict, distances)
@@ -644,12 +645,12 @@ def generate_human_parcellated_comparison_results(number_of_parcels, which_resul
         best_gamma_MI = gamma_MI[args_optimal[0][0]]
         best_eta_MI = eta_MI[args_optimal[1][0]]
 
-        cost_rule = geometricModels.powerlawRule
+        cost_rule = powerlawRule
         total_number_of_possible_edges = len(idxes_parcel[0])
 
         for repet_ in range(number_of_repetitions):
-            modelSC = connectome_models.generate_matching_index_model(best_eta_MI, best_gamma_MI, n_nodes, n_edges_parcel_empirical, distances, total_number_of_possible_edges, idxes_parcel, cost_rule)
-            modelSC_idxes = modelSC[idxes_parcel]
+            model = connectome_models.generate_matching_index_model(best_eta_MI, best_gamma_MI, n_nodes, n_edges_parcel_empirical, distances, total_number_of_possible_edges, idxes_parcel, cost_rule)
+            model_idxes = model[idxes_parcel]
 
             if which_results == "main":
                 results = get_performance_results(network_measures_binary, model, model_idxes, empirical_parcel_connectivity_idxes, empirical_node_properties_dict, distances)
@@ -710,7 +711,7 @@ def generate_human_parcellated_comparison_results(number_of_parcels, which_resul
     else:
         np.save(directory_save+ f"/{which_results}_optimized_results", dict_results, allow_pickle=True)
 
-
+    print("done and saved")
 
 # Current working director
 cwd = os.getcwd()
@@ -741,7 +742,7 @@ def mainFunction():
     # generate_geometric_modes(number_of_parcels)
 
     # 2. Optimize the GEM (explore parameters landscape)
-    optimize_and_save_human_parcellated_results(number_of_parcels)
+    # optimize_and_save_human_parcellated_results(number_of_parcels)
     # print()
 
     #3. Visualize performance
@@ -752,7 +753,7 @@ def mainFunction():
     # results = "spectral"
     
     #4. Generate benchmark models
-    # generate_human_parcellated_comparison_results(number_of_parcels, which_results=results)
+    generate_human_parcellated_comparison_results(number_of_parcels, which_results=results)
 
     #5. Compare GEM performance with other models
     # compare_human_parcellated_models(which_results=results)

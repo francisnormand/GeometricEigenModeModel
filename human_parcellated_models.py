@@ -11,6 +11,8 @@ import connectome_models
 import utilities
 import time
 
+from utilities import powerlawRule, exponentialRule
+
 cwd = os.getcwd()
 
 def check_if_already_exists(network_measures, path_base_save, current_hypothesis):
@@ -162,11 +164,6 @@ def EDR_generate_and_save(path_data, task_id, number_of_parcels=300):
 
     print(f"done and saved {formulation}")
 
-def powerlawRule(ditanceArray, eta):
-    return ditanceArray**eta
-
-def exponentialRule(ditanceArray, eta):
-    return np.exp(eta*ditanceArray)
 
 def distance_atlas_generate_and_save(path_data, number_of_parcels, repetition_id):
 

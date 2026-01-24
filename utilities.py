@@ -94,6 +94,13 @@ def resample_matrix(template, noise='gaussian', seed=None, rand_params=[0.5, 0.1
 
     return spatial_noise
 
+def powerlawRule(ditanceArray, eta):
+    return ditanceArray**eta
+
+def exponentialRule(ditanceArray, eta):
+    return np.exp(eta*ditanceArray)
+    
+
 def downsample_high_resolution_structural_connectivity_to_atlas(high_resolution_connectome,
                                                                 parcellation):
     """
