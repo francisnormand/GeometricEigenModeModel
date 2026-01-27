@@ -486,6 +486,8 @@ def generate_human_parcellated_comparison_results(number_of_parcels, which_resul
     empirical_connectome_binary = (empirical_parcel_connectivity > 0).astype(int)
     n_edges_parcel_empirical = len(np.nonzero(empirical_parcel_connectivity_idxes)[0])
 
+    print(n_edges_parcel_empirical, "n_edges_parcel_empirical")
+
     if which_results == "modularity":
         G_empirical = nx.from_numpy_array(empirical_connectome_binary)
         empirical_partition_dict = utilities.efficient_newman_spectral_communities(G_empirical, list_of_number_of_communities)
@@ -677,7 +679,7 @@ def generate_human_parcellated_comparison_results(number_of_parcels, which_resul
         number_of_repetitions = 100
         for repet_ in range(number_of_repetitions):
             print(repet_, f"repet Random")
-            model = generate_random_parcellated_model(n_vertices, total_possible_connections, n_edges_vertex_empirical, idxes_vertex, characteristic_matrix, idxes_parcel, n_edges_parcel_empirical, resampling_weights, weighted=True)
+            model = connectome_models.generate_random_parcellated_model(n_vertices, total_possible_connections_vertex, n_edges_vertex_empirical, idxes_vertex, characteristic_matrix, idxes_parcel, n_edges_parcel_empirical, resampling_weights, weighted=True)
             model_idxes = model[idxes_parcel]
             
             if which_results == "main":
@@ -701,8 +703,15 @@ def generate_human_parcellated_comparison_results(number_of_parcels, which_resul
                 spectral_distance = utilities.compute_spectral_distance(empirical_spectrum, model_spectrum)
                 list_results.append(spectral_distance[0])
 
+    if formulation_generate == "MI" or formulation_generate == "distance-atlas":
+        directory_save = directory + f"/optimized_for_{opt_metric_str_binary}"
 
-    directory_save = directory + f"/optimized_for_{opt_metric_str}"
+    elif formulation_generate == "Random":
+        directory_save = directory + f"/optimized_for_None"
+    
+    else:
+        directory_save = directory + f"/optimized_for_{opt_metric_str}"
+
     if not os.path.exists(directory_save):
         os.makedirs(directory_save)
     
@@ -712,6 +721,117 @@ def generate_human_parcellated_comparison_results(number_of_parcels, which_resul
         np.save(directory_save+ f"/{which_results}_optimized_results", dict_results, allow_pickle=True)
 
     print("done and saved")
+
+def visualize_human_parcellated_model_main_results_comparison(number_of_parcels):
+    which_results = "main"
+    cmap = utilities.get_colormap()
+
+    color_optimized = cmap(0.5)
+    color_not_optimized = color_optimized
+    alpha = 0.8
+
+    formulation_GEM = "GEM"
+    formulation_EDR_vertex = "EDR-vertex"
+    formulation_distance_atlas = "distance-atlas"
+    formulation_MI = "MI"
+    formulation_Random = "Random"
+
+    list_of_models = [formulation_GEM, formulation_EDR_vertex, formulation_distance_atlas, formulation_MI, formulation_Random]
+
+    human_parcellated_parameters = get_human_parcellated_parameters(number_of_parcels)
+    r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, fixed_vertex_threshold_density, resampling_weights = human_parcellated_parameters
+
+    # (surface, surface_name), cortex_mask_array, empirical_vertex_connectivity = get_human_high_res_surface_and_connectome(path_data, human_vertex_parameters)
+
+    k_range = np.array([k_ for k_ in range(2, 200)])
+
+    # Network mesasures that will be displayed
+    # network_measures = ["degreeBinary", "spearman_union_weights", "ranked_weights_strength"]
+    network_measures = ["node connection distance", "true_positive_rate", "clustering"]
+    
+    optimization_metric_list = ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]
+    optimization_metric_list_binary = ["degreeBinary", "true_positive_rate"]
+
+    opt_metric_str = "_".join(optimization_metric_list)
+    opt_metric_str_binary = "_".join(optimization_metric_list_binary)
+
+    optimization_str_dict = {formulation_GEM:opt_metric_str,  formulation_EDR_vertex:opt_metric_str, formulation_distance_atlas:opt_metric_str_binary, formulation_MI:opt_metric_str_binary, formulation_Random:"None"}
+
+
+    measure_colors = {measure: color_optimized for measure in network_measures}
+    
+    exclude_models_by_measure = {
+    "spearman_union_weights": ["MI", "distance-atlas"],
+    "ranked_weights_strength": ["MI", "distance-atlas"]}
+
+    model_optimization_metrics = {
+    formulation_GEM: optimization_metric_list,
+    formulation_EDR_vertex: optimization_metric_list,
+    formulation_distance_atlas: optimization_metric_list,
+    formulation_Random:optimization_metric_list,
+    }
+
+    print(which_results, "which reuslts")
+
+    def load_results(models, measures, which_results):
+        all_data = []
+        for model in models:
+            print(model, "model")
+            
+            # subdir = f"{cwd}/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{model}/optimized_for_{opt_metric_str}"
+            subdir = f"/{cwd}/data/results/human_parcellated/Schaefer{number_of_parcels}/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{model}"
+            
+            opt_metric_model = optimization_str_dict[model]
+
+            subdir += f"/optimized_for_{opt_metric_model}"
+
+            filename = f"{which_results}_optimized_results.npy"
+            filepath = os.path.join(subdir, filename)
+
+            if not os.path.exists(filepath):
+                print(f"Skipping missing file: {filepath}")
+                continue
+
+            results_dict = np.load(filepath, allow_pickle=True).item()
+            if which_results == "main":
+                for measure in measures:
+                    print(measure, "measure")
+                    if measure not in results_dict:
+                        continue
+                    dum_list = []
+                    for val in results_dict[measure]:
+                        all_data.append({
+                            "model": model,
+                            "measure": measure,
+                            "value": val
+                        })
+                        dum_list.append(val)
+                        # print(np.mean(dum_list), "mean score")
+            else:
+                all_data.append({
+                            "model": model,
+                            "value": list(results_dict.values())
+                        })
+
+        return pd.DataFrame(all_data)
+
+    df_net = load_results(list_of_models, network_measures, which_results)
+    utilities.plot_all_measures_together(df_net, "Network Measure", measure_colors, exclude_models_by_measure, different_opt_metrics=True, model_optimization_metrics=model_optimization_metrics, color_optimized=color_optimized, color_not_optimized=color_not_optimized, alpha=alpha)
+    plt.show()
+
+def visualize_human_parcellated_model_modularity_comparison():
+    pass
+
+def visualize_human_parcellated_model_spectral_distance_comparison():
+    pass
+
+def compare_human_parcellated_models(number_of_parcels, which_results="main"):
+    if which_results == "main":
+        visualize_human_parcellated_model_main_results_comparison(number_of_parcels)
+    elif which_results == "modularity":
+        visualize_human_parcellated_model_modularity_comparison(number_of_parcels)
+    elif which_results == "spectral":
+        visualize_human_parcellated_model_spectral_distance_comparison(number_of_parcels)
 
 # Current working director
 cwd = os.getcwd()
@@ -753,10 +873,10 @@ def mainFunction():
     # results = "spectral"
     
     #4. Generate benchmark models
-    generate_human_parcellated_comparison_results(number_of_parcels, which_results=results)
+    # generate_human_parcellated_comparison_results(number_of_parcels, which_results=results)
 
     #5. Compare GEM performance with other models
-    # compare_human_parcellated_models(which_results=results)
+    compare_human_parcellated_models(number_of_parcels, which_results=results)
 
 
 if __name__ == "__main__":

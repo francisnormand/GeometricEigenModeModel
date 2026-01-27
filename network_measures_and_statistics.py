@@ -137,8 +137,17 @@ def compute_node_properties(node_measures, connectivity_matrix, distances):
             A = csr_matrix(binary_connectivity)
             degrees = np.array(A.sum(axis=1)).flatten()
             triangles = A @ A @ A
-            triangles = triangles.diagonal() 
-            clustering_coeffs = triangles / (degrees * (degrees - 1))
+            triangles = triangles.diagonal()
+            denom = degrees * (degrees - 1)
+
+            clustering_coeffs = np.zeros_like(degrees, dtype=float)
+            np.divide(
+                triangles,
+                denom,
+                out=clustering_coeffs,
+                where=denom != 0
+            )
+            # clustering_coeffs = triangles / (degrees * (degrees - 1))
             dictionary_node_measures[node_measure] = clustering_coeffs
 
         elif node_measure == "ks_edge_distance":
