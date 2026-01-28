@@ -41,7 +41,7 @@ conda install -n geom_eigen_model numpy=1.26.* scipy=1.13.* numba=0.60.* mkl mkl
 There are 3 scripts to run the analyses (only these files should be modified).
 
 `demo_high resolution.py`: run the analyses for the high-resolution human connectome
-`demo_human_parcellated.py`: run the analyses for the human atlas-based connectome (INCOMPLETE)
-`demo_non_human_species_parcelalted.py`: run the analyses for the mouse, marmoset and macaque connectomes (INCOMPLETE)
+`demo_human_parcellated.py`: run the analyses for the human atlas-based connectome
+`demo_non_human_species.py`: run the analyses for the mouse, marmoset and macaque connectomes (INCOMPLETE)
 
 
