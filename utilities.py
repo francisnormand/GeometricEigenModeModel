@@ -994,6 +994,25 @@ def calc_surface_eigenmodes_nomask(surface_input_filename, output_eval_filename,
 
     return evals, emodes
 
+def newman_spectral_communities(G, k=None):
+    B = nx.modularity_matrix(G)
+
+    # print("got the B matrix")
+    
+    if k is None:
+        k = estimate_optimal_k(B)  # Auto-detect k
+
+
+    eigvals, eigvecs = eigsh(B, k=k, which="LA")  # Get k largest eigenvectors
+    # print("got the eivals")
+
+    kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+    labels = kmeans.fit_predict(eigvecs)
+    
+    # Assign communities to nodes
+    nodes = list(G.nodes())
+    return {nodes[i]: labels[i] for i in range(len(nodes))}
+
 def efficient_newman_spectral_communities(G, list_of_number_of_communities):
     B = nx.modularity_matrix(G)
 
@@ -1023,6 +1042,27 @@ def getDictOfPartitionsSet(partition_dict):
         partitions_set_dict[key_com] = convertDicttoListOfBrackets(partition)
     
     return partitions_set_dict
+
+def getPartition(G, k_part=None, method="Newman"):
+
+    if method == "Newman":
+        partition = newman_spectral_communities(G, k=k_part)
+
+    else:
+        # partition_empirical, q_emp = bct.modularity_louvain_und(connectome_mouse, seed=42)
+        # partition_model = convertListToDict(partition_model)
+        print("none implemented")
+        sys.exit()
+        pass
+
+    return partition
+
+def getDictOfPartitions(list_of_number_of_communities, G, method="Newman"):
+    partition_dict = {}
+    for n_com_key in list_of_number_of_communities:
+        partition_dict[n_com_key] =  getPartition(G, k_part=n_com_key)
+
+    return partition_dict
 
 def convertDicttoListOfBrackets(partition):
     communities = {}

@@ -483,17 +483,17 @@ def generate_human_parcellated_comparison_results(number_of_parcels, which_resul
 
     empirical_parcel_connectivity_idxes = empirical_parcel_connectivity[idxes_parcel]
     empirical_node_properties_dict = compute_node_properties(network_measures, empirical_parcel_connectivity, distances)
-    empirical_connectome_binary = (empirical_parcel_connectivity > 0).astype(int)
+    empirical_connectome_binary = (empirical_parcel_connectivity > 0).astype(float)
     n_edges_parcel_empirical = len(np.nonzero(empirical_parcel_connectivity_idxes)[0])
 
     print(n_edges_parcel_empirical, "n_edges_parcel_empirical")
 
     if which_results == "modularity":
         G_empirical = nx.from_numpy_array(empirical_connectome_binary)
-        empirical_partition_dict = utilities.efficient_newman_spectral_communities(G_empirical, list_of_number_of_communities)
+        empirical_partition_dict = utilities.getDictOfPartitions(list_of_number_of_communities, G_empirical)
         empirical_labels_dict = utilities.labelsDict(G_empirical, empirical_partition_dict)
         empirical_partitions_set_dict = utilities.getDictOfPartitionsSet(empirical_partition_dict)
-    
+
     elif which_results == "spectral":
         empirical_spectrum = utilities.compute_eigenspectrum(empirical_connectome_binary)
 
@@ -521,12 +521,14 @@ def generate_human_parcellated_comparison_results(number_of_parcels, which_resul
                 dict_results[net_measure].append(results[net_measure])
 
         elif which_results == "modularity":
-            model = (model > 0).astype(int)
-            G_model = nx.from_numpy_array(model)
-            model_partition_dict = utilities.efficient_newman_spectral_communities(G_model, list_of_number_of_communities)
+            model = (model > 0).astype(float)
+            G_model = nx.from_numpy_array(model)            
+            model_partition_dict = utilities.getDictOfPartitions(list_of_number_of_communities, G_model)
             model_labels_dict = utilities.labelsDict(G_model, model_partition_dict)
             nvi_dict = utilities.getDictOfNVI(empirical_labels_dict, model_labels_dict)
+
             for n_com  in nvi_dict.keys():
+                print(n_com, nvi_dict[n_com], "n_com NVI")
                 dict_results[n_com].append(nvi_dict[n_com])
 
         elif which_results == "spectral":
@@ -723,6 +725,7 @@ def generate_human_parcellated_comparison_results(number_of_parcels, which_resul
     print("done and saved")
 
 def visualize_human_parcellated_model_main_results_comparison(number_of_parcels):
+
     which_results = "main"
     cmap = utilities.get_colormap()
 
@@ -819,8 +822,60 @@ def visualize_human_parcellated_model_main_results_comparison(number_of_parcels)
     utilities.plot_all_measures_together(df_net, "Network Measure", measure_colors, exclude_models_by_measure, different_opt_metrics=True, model_optimization_metrics=model_optimization_metrics, color_optimized=color_optimized, color_not_optimized=color_not_optimized, alpha=alpha)
     plt.show()
 
-def visualize_human_parcellated_model_modularity_comparison():
-    pass
+def visualize_human_parcellated_model_modularity_comparison(number_of_parcels):
+    which_results = "modularity"
+    cmap = utilities.get_colormap()
+
+    color_optimized = cmap(0.5)
+    color_not_optimized = color_optimized
+    alpha = 0.8
+
+    formulation_GEM = "GEM"
+    formulation_EDR_vertex = "EDR-vertex"
+    formulation_distance_atlas = "distance-atlas"
+    formulation_MI = "MI"
+    formulation_Random = "Random"
+
+    list_of_models = [formulation_GEM, formulation_MI, formulation_distance_atlas, formulation_EDR_vertex, formulation_Random]
+
+    human_parcellated_parameters = get_human_parcellated_parameters(number_of_parcels)
+    r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, fixed_vertex_threshold_density, resampling_weights = human_parcellated_parameters
+
+    k_range = np.array([k_ for k_ in range(2, 200)])
+
+    representation_modularity = "binary"
+
+    colors = ["darkgreen", "palegreen", "mediumseagreen", "rebeccapurple", "indianred"]
+
+    optimization_metric_list = ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]
+    optimization_metric_list_binary = ["degreeBinary", "true_positive_rate"]
+
+    opt_metric_str = "_".join(optimization_metric_list)
+    opt_metric_str_binary = "_".join(optimization_metric_list_binary)
+
+    optimization_str_dict = {formulation_GEM:opt_metric_str,  formulation_EDR_vertex:opt_metric_str, formulation_distance_atlas:opt_metric_str_binary, formulation_MI:opt_metric_str_binary, formulation_Random:"None"}
+
+    legend_handles = []
+
+    results_dict = {}
+
+    list_of_number_of_communities = [3, 4, 5 , 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+
+    for i_m, model in enumerate(list_of_models):
+        opt_metric_model = optimization_str_dict[model]
+        results_base_dir = f"/{cwd}/data/results/human_parcellated/Schaefer{number_of_parcels}/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{model}"
+        results_base_dir += f"/optimized_for_{opt_metric_model}"
+        results_model_ = np.load(results_base_dir + f"/{which_results}_optimized_results.npy", allow_pickle=True).item()
+
+        results_dict[model] = results_model_
+        y_mean = np.array([np.mean(results_model_[key]) for key in list_of_number_of_communities])
+
+        auc = np.trapz(y_mean, np.array(list_of_number_of_communities))
+        print(auc, f"AUC for {model}")
+    
+    utilities.linePlotModularity(list_of_number_of_communities, list_of_models, results_dict, colors, "NVI")
+
+    plt.show()
 
 def visualize_human_parcellated_model_spectral_distance_comparison():
     pass
@@ -868,15 +923,15 @@ def mainFunction():
     #3. Visualize performance
     # visualize_GEM_human_parcellated_results(number_of_parcels)
 
-    results = "main"
-    # results = "modularity"
+    # results = "main"
+    results = "modularity"
     # results = "spectral"
     
     #4. Generate benchmark models
-    # generate_human_parcellated_comparison_results(number_of_parcels, which_results=results)
+    generate_human_parcellated_comparison_results(number_of_parcels, which_results=results)
 
     #5. Compare GEM performance with other models
-    compare_human_parcellated_models(number_of_parcels, which_results=results)
+    # compare_human_parcellated_models(number_of_parcels, which_results=results)
 
 
 if __name__ == "__main__":
