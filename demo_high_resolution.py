@@ -589,6 +589,7 @@ def generate_human_vertex_comparison_results(which_results="main"):
         elif which_results == "modularity":
             model = (model > 0).astype(int)
             G_model = nx.from_numpy_array(model)
+            # Slightly different implementation than the human parc case (this one is more efficient), but comparison between models is consistent.
             model_partition_dict = utilities.efficient_newman_spectral_communities(G_model, list_of_number_of_communities)
             model_labels_dict = utilities.labelsDict(G_model, model_partition_dict)
             nvi_dict = utilities.getDictOfNVI(empirical_labels_dict, model_labels_dict)

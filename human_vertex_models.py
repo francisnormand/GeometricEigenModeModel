@@ -262,8 +262,8 @@ if __name__ == "__main__":
 
     if formulation is None:
         # Manual input here instead of call from command line 
-        formulation = "EDR"
-        # formulation = "GEM"
+        # formulation = "EDR"
+        formulation = "GEM"
 
     generate_and_save_model_performance(path_data, r_s_id, formulation)
 

@@ -1,8 +1,6 @@
 import utilities
 import numpy as np
 
-
-
 def generate_high_res_GEM_humans(r_s, k, emodes, evals, density, idxes_vertex, resampling_weights):
     
     evals_r_s_squared = (r_s**2) * evals
