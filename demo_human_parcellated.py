@@ -108,8 +108,7 @@ def submit_slurm_jobs_chunks(num_tasks, script_path, formulation, path_data, chu
 
 def generate_geometric_modes(number_of_parcels=300):
     """
-    Compute and save eigenvalues, eigenmodes, and (if masked) the B-matrix 
-    of the human cortical surface.
+    Compute and save eigenvalues, eigenmodes of the human cortical surface.
 
     If the eigenmodes file already exists, the process is skipped.
 
@@ -129,7 +128,6 @@ def generate_geometric_modes(number_of_parcels=300):
     Saves the following files in `path_data`:
         - human_parcelalted_{number_of_parcels}_evals_lump_{lump}_masked_{cortex_mask}.npy
         - human_parcelalted_{number_of_parcels}_emodes_lump_{lump}_masked_{cortex_mask}.npy
-        - human__parcelalted_{number_of_parcels}_Bmatrix_lump_{lump}_masked_{cortex_mask}.npy (if masked)
     """
     lump = False
 

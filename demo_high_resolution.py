@@ -165,8 +165,7 @@ def load_human_vertex_modes(path_data, lump, cortex_mask):
 
 def generate_geometric_modes():
     """
-    Compute and save eigenvalues, eigenmodes, and (if masked) the B-matrix 
-    of the human cortical surface.
+    Compute and save eigenvalues, eigenmodes of the human cortical surface.
 
     If the eigenmodes file already exists, the process is skipped.
 
@@ -186,7 +185,6 @@ def generate_geometric_modes():
     Saves the following files in `path_data`:
         - human_high_res_evals_lump_{lump}_masked_{cortex_mask}.npy
         - human_high_res_emodes_lump_{lump}_masked_{cortex_mask}.npy
-        - human_high_res_Bmatrix_lump_{lump}_masked_{cortex_mask}.npy (if masked)
     """
     lump = False
 

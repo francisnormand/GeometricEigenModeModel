@@ -10,5 +10,6 @@ data/results/
 data/surfaces/
 data/human_high_res/
 data/human_parcellated/
+data/non_human_species/
 slurm_output/
 
