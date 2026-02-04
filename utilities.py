@@ -191,24 +191,29 @@ def get_parcellated_human_centroids(path):
 
 
 
-def get_animal_surface(animal):
-    path_ = f"/home/fnormand/kg98_scratch/FrancisN/animal_data/{animal}"
+def get_non_human_species_surface(path_data, species):
 
-    if animal == "Mouse":
-        mesh = lapy.TetMesh.read_vtk(path_+ "/rh_tet_mesh.vtk")
-
-    elif animal == "Marmoset":
-        mesh = lapy.TriaMesh.read_vtk(path_ + "/MBM_v3.0.1_midthickness-lh.vtk")
+    if species == "Mouse":
+        filename_mesh = "rh_tet_mesh.vtk"
+        full_path = f"{path_data}/{filename_mesh}"
+        mesh = lapy.TetMesh.read_vtk(full_path)
         
-    elif animal == "Macaque":
-        mesh = lapy.TriaMesh.read_vtk(path_ + "/MacaqueYerkes19_10k_midthickness-lh.vtk")
+    elif species == "Marmoset":
+        filename_mesh = "MBM_v3.0.1_midthickness-lh.vtk"
+        full_path = f"{path_data}/{filename_mesh}"
+        mesh = lapy.TriaMesh.read_vtk(full_path)
+        
+    elif species == "Macaque":
+        filename_mesh = "MacaqueYerkes19_10k_midthickness-lh.vtk"
+        full_path = f"{path_data}/{filename_mesh}"
+        mesh = lapy.TriaMesh.read_vtk(full_path)
 
-    elif animal == "ChimpYerkes29":
-        mesh = lapy.TriaMesh.read_vtk(path_ + "/ChimpYerkes29_midthickness-lh.vtk")
+    elif species == "ChimpYerkes29":
+        filename_mesh = "ChimpYerkes29_midthickness-lh.vtk"
+        full_path = f"{path_data}/{filename_mesh}"
+        mesh = lapy.TriaMesh.read_vtk(full_path)
 
-    return mesh
-
-
+    return mesh, full_path
 
 
 def get_animal_params(animal):

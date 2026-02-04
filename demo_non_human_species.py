@@ -43,7 +43,7 @@ def generate_geometric_modes(species):
   
     max_num_modes = 500
 
-    surface, surface_path = utilities.get_human_template_surface()
+    mesh, mesh_path = get_non_human_species_surface(path_data, species)
 
     output_eval_filename = path_data + f"f{species}/{species}_evals_lump_{lump}.npy"
     output_emode_filename = path_data + f"/{species}/{species}_emodes_lump_{lump}.npy"
@@ -56,16 +56,21 @@ def generate_geometric_modes(species):
         print()
 
     if species == "mouse":
-        path_mesh = path_data + f"/{specie}/rh_tet_mesh.vtk"
-        mesh = lapy.TetMesh.read_vtk(path_mesh)
         solver = lapy.Solver(mesh)
-        eigenvalues, eigenmodes = solver.eigs(k=500)
+        eigenvalues, eigenmodes = solver.eigs(k=max_num_modes)
 
         np.save(output_eval_filename, eigenvalues)
         np.save(output_emode_filename, eigenmodes)
     
     else:
-        cortex_mask_array = utilities.get_human_parcellated_cortex_mask(path_data, number_of_parcels)
+        _, _, _, _, mean_or_sum, _, _, _ = utilities.get_animal_params(species)
+        loaded_parameters_and_variables = np.load(path_data + f"/{species}_parc_scheme={mean_or_sum}_saved_parameters_and_variables.npy", allow_pickle=True).item()
+        idxes_cortex = loaded_parameters_and_variables['idxes_cortex']
+        n_vertices = mesh.vertices[0].shape[0]
+        cortex_mask_array = np.zeros(n_vertices)
+        cortex_mask_array[idxes_cortex = 1]
+        cortex_mask_array = cortex_mask_array.astype(int)
+
         save_cut = 0  #Not saving temporary cut surface       
         evals, emodes, B_matrix = utilities.calc_surface_eigenmodes(surface_path, cortex_mask_array, output_eval_filename, output_emode_filename, output_B_matrix_filename, save_cut=save_cut, num_modes=max_num_modes, lump=lump)
     
