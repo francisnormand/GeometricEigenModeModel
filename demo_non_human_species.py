@@ -43,9 +43,9 @@ def generate_geometric_modes(species):
   
     max_num_modes = 500
 
-    mesh, mesh_path = get_non_human_species_surface(path_data, species)
+    mesh, mesh_path = utilities.get_non_human_species_mesh(path_data, species)
 
-    output_eval_filename = path_data + f"f{species}/{species}_evals_lump_{lump}.npy"
+    output_eval_filename = path_data + f"/{species}/{species}_evals_lump_{lump}.npy"
     output_emode_filename = path_data + f"/{species}/{species}_emodes_lump_{lump}.npy"
     output_B_matrix_filename = None # Not saving the B matrix
 
@@ -55,7 +55,7 @@ def generate_geometric_modes(species):
         print("geometric modes already exists and will be overwritten")
         print()
 
-    if species == "mouse":
+    if species == "Mouse":
         solver = lapy.Solver(mesh)
         eigenvalues, eigenmodes = solver.eigs(k=max_num_modes)
 
@@ -64,15 +64,15 @@ def generate_geometric_modes(species):
     
     else:
         _, _, _, _, mean_or_sum, _, _, _ = utilities.get_animal_params(species)
-        loaded_parameters_and_variables = np.load(path_data + f"/{species}_parc_scheme={mean_or_sum}_saved_parameters_and_variables.npy", allow_pickle=True).item()
+        loaded_parameters_and_variables = np.load(path_data + f"/{species}/{species}_parc_scheme={mean_or_sum}_saved_parameters_and_variables.npy", allow_pickle=True).item()
         idxes_cortex = loaded_parameters_and_variables['idxes_cortex']
-        n_vertices = mesh.vertices[0].shape[0]
+        n_vertices = mesh.v.shape[0]
         cortex_mask_array = np.zeros(n_vertices)
-        cortex_mask_array[idxes_cortex = 1]
+        cortex_mask_array[idxes_cortex] = 1
         cortex_mask_array = cortex_mask_array.astype(int)
 
         save_cut = 0  #Not saving temporary cut surface       
-        evals, emodes, B_matrix = utilities.calc_surface_eigenmodes(surface_path, cortex_mask_array, output_eval_filename, output_emode_filename, output_B_matrix_filename, save_cut=save_cut, num_modes=max_num_modes, lump=lump)
+        evals, emodes, B_matrix = utilities.calc_surface_eigenmodes(mesh_path, cortex_mask_array, output_eval_filename, output_emode_filename, output_B_matrix_filename, save_cut=save_cut, num_modes=max_num_modes, lump=lump)
     
     print()
     print("geometric modes were saved")
@@ -102,9 +102,9 @@ def mainFunction():
     These functions have to be run sequentially.
     """
 
-    species = "mouse"
-    species = "marmoset"
-    species = "macaque"
+    # species = "Mouse"
+    # species = "Marmoset"
+    species = "Macaque"
 
     # 1. Generate the geometric eigenmodes
     generate_geometric_modes(species)
