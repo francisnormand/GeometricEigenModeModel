@@ -27,6 +27,7 @@ cwd = os.getcwd()
 
 def resample_matrix(template, noise='gaussian', seed=None, rand_params=[0.5, 0.1], 
                     ignore_repeats=True, reset_zeros=True, resymmetrise=True):
+
     """
     Generates a matrix of noise in the same pattern as a template.
     
@@ -136,6 +137,7 @@ def apply_threshold_to_match_densities(vertexSpaceSC, nEdgesVertexSpace, idxes):
     return vertexSpaceSC_thresholded
 
 def get_colormap(reverse=True):
+
     original_cmap = cmaps_extra.ice 
     new_cmap = original_cmap(np.linspace(0, 0.93, 256))
     if reverse == True:
@@ -146,6 +148,7 @@ def get_colormap(reverse=True):
     return custom_cmap
 
 def get_custom_colormap(top_cmap=0.5):
+
     original_cmap = cmaps_extra.ice 
     new_cmap = original_cmap(np.linspace(0, top_cmap, 256))
     reversed_cmap = new_cmap[::-1]  
@@ -154,6 +157,7 @@ def get_custom_colormap(top_cmap=0.5):
     return custom_cmap
 
 def get_human_template_surface(path_surface_high_res=None):
+
     extension = "L.midthickness.5k.surf.vtk"
 
     if path_surface_high_res == None:
@@ -163,33 +167,17 @@ def get_human_template_surface(path_surface_high_res=None):
     return lapy.TriaMesh.read_vtk(fullpath), fullpath
 
 def get_human_cortex_mask(path):
+
     extension = "cortex_mask_L.midthickness.5k.surf"
     cortex_mask = np.loadtxt(path+f"/{extension}")
     return cortex_mask.astype(int)
 
 
 def get_human_parcellated_cortex_mask(path, number_of_parcels):
-    cortex_mask = np.load(path + f"/Schaefer{number_of_parcels}/cortex_mask_to_SC{number_of_parcels}.npy")
-    return cortex_mask.astype(int)
-
-
-def get_parcellated_human_centroids(path):
-    path_base_parcellations = "/home/fnormand/kg98_scratch/FrancisN/data/atlases/human_atlases/parcellations"
-
-    extension_centroids = "Schaefer2018_{}Parcels_17Networks_order_FSLMNI152_2mm.Centroid_RAS.csv".format(number_of_parcels)
-    path_centroids = path_base_parcellations + "/" + extension_centroids
     
-    centroids  = np.loadtxt(path_centroids, delimiter=",", dtype=str)
-    centroids = centroids[1:, 2:]
-    centroids = np.asarray(centroids, dtype=int)
-    L_hemi_idx = int(number_of_parcels/2)
-    centroids = centroids[0:L_hemi_idx, :]
-    print(centroids.shape, "centroids shape")
-    distances = pdist(centroids)
+    cortex_mask = np.load(path + f"/Schaefer{number_of_parcels}/cortex_mask_to_SC{number_of_parcels}.npy")
 
-    return distances, centroids
-
-
+    return cortex_mask.astype(int)
 
 def get_non_human_species_mesh(path_data, species):
 
@@ -210,76 +198,10 @@ def get_non_human_species_mesh(path_data, species):
 
     return mesh, full_path
 
-
-def get_animal_params(animal):
-    
-    params_animal = {}
-    if animal == "ChimpYerkes29":
-        surface_name="L.5k.ChimpYerkes29_midthickness-lh"
-        mesh_type = "surface"
-        mean_or_sum = "sum"
-        # r_s_values_list = np.linspace(0, 40, 100)
-        r_s_values_list = np.linspace(0, 15, 50)
-        target_density = 1
-        fixed_threshold_vertex = 0.05 ## Chimp
-
-    elif animal == "Marmoset":
-        surface_name = "MBM_v3.0.1_midthickness-lh"
-        # surface_name = "MBM_v3.0.1.lh.sphere"
-        mesh_type = "surface"
-        mean_or_sum = "mean"
-        # r_s_values_list = np.linspace(0, 30, 100)
-        r_s_values_list = np.linspace(0, 5, 50)
-        target_density = 1
-        fixed_threshold_vertex = 0.03 ## Marmoset
-
-    elif animal == "Macaque":
-        surface_name = "MacaqueYerkes19_10k_midthickness-lh"
-        # animal = "Macaque"
-        mesh_type = "surface"
-        mean_or_sum = "mean"
-        # r_s_values_list = np.linspace(0, 20, 100)
-        # r_s_values_list = np.linspace(0, 10, 50)
-        r_s_values_list = np.linspace(0, 9, 50)
-        
-        # target_density = 1
-        target_density = 0.4
-        fixed_threshold_vertex = 0.6 ## Macaque or 1 does not matter!
-
-    elif animal == "Mouse":
-        # surface_name = "full_volume_ds_allen"
-        surface_name = "rh_volume_ds_allen"
-        connectome_type = "right_allen"
-        mesh_type = surface_name
-        mean_or_sum = "mean"
-
-        # density_allen = "raw"
-        density_allen = "thr"
-
-        # r_s_values_list = np.linspace(0, 20, 100)
-        r_s_values_list = np.linspace(0, 3, 50)
-        
-        if density_allen == "thr":
-            fixed_threshold_vertex = 0.2 ## Mouse
-            target_density = 1
-        else:
-            # fixed_threshold_vertex = 1
-            fixed_threshold_vertex = 0.6
-            target_density = 0.9
-            # target_density = 0.95
-
-    if animal != "Mouse":
-        connectome_type = None
-        density_allen = None
-
-
-    return surface_name, mesh_type, connectome_type, density_allen, mean_or_sum, r_s_values_list, target_density, fixed_threshold_vertex
-
-def get_parcellated_human_centroids(number_of_parcels):
-    path_base_parcellations = "/home/fnormand/kg98_scratch/FrancisN/data/atlases/human_atlases/parcellations"
+def get_parcellated_human_centroids(number_of_parcels, path_data):
 
     extension_centroids = "Schaefer2018_{}Parcels_17Networks_order_FSLMNI152_2mm.Centroid_RAS.csv".format(number_of_parcels)
-    path_centroids = path_base_parcellations + "/" + extension_centroids
+    path_centroids = f"{path_data}/Schaefer{number_of_parcels}/{extension_centroids}"
     
     centroids  = np.loadtxt(path_centroids, delimiter=",", dtype=str)
     centroids = centroids[1:, 2:]
@@ -314,79 +236,23 @@ def get_vertex_human_centroids(surface_name, connectome_origin):
 
     return distances, idxes_cortex
 
-def getCentroids(animal):
-    if animal == "ChimpYerkes29":
-        path_centroids = "/home/fnormand/kg98_scratch/FrancisN/animal_data/ChimpYerkes29/centroids_DK114.txt"
-        centroids = np.loadtxt(path_centroids, delimiter=",")
-        centroids = np.asarray(centroids, dtype=int)
-        L_hemi_idx = int(centroids.shape[0]/2)
-        print(L_hemi_idx, "L_hemi_idx")
-        centroids = centroids[0:L_hemi_idx, :]
-    
-    elif animal == "Marmoset":
-        path_centroids = "/home/fnormand/kg98_scratch/FrancisN/animal_data/Marmoset/centroids_parcels_connectome.npy"
+def get_non_human_species_centroids(species, path_data):
+
+    if species == "Marmoset":
+        path_centroids = f"{path_data}/{species}/centroids_parcels_connectome.npy"
         centroids = np.load(path_centroids)	
 
-    elif animal == "Macaque":
-        path_centroids = "/home/fnormand/kg98_scratch/FrancisN/animal_data/Macaque/centroids_connectome.npy"
+    elif species == "Macaque":
+        path_centroids = f"{path_data}/{species}/centroids_connectome.npy"
         centroids = np.load(path_centroids)	
 
-    elif animal == "Mouse":
-        path_centroids = "/home/fnormand/kg98_scratch/FrancisN/animal_data/Mouse/rh_centroids.txt"
+    elif species == "Mouse":
+        path_centroids = f"{path_data}/{species}/rh_centroids.txt"
         centroids = np.loadtxt(path_centroids, delimiter=",")	
 
-    return centroids
+    distances = pdist(centroids)
+    return distances, centroids
 
-
-def getAnimalEmpiricalConnectome(model_parameters_and_variables, representation="weighted", resampling_weights=None):
-
-    target_density = model_parameters_and_variables['target_density']
-    animal = model_parameters_and_variables['animal']
-    connectome_type = model_parameters_and_variables['connectome_type']
-    density_allen = model_parameters_and_variables['density_allen']
-    mesh_type = model_parameters_and_variables['mesh_type']
-
-    path_base_data = f"/home/fnormand/kg98_scratch/FrancisN/animal_data/{animal}"
-
-    extension_save = f"density={target_density}"
-
-    if animal == "ChimpYerkes29":
-        empirical_connectome = np.loadtxt(path_base_data + "/" + "connectome_chimp.txt", delimiter=",")
-        L_hemi_idx = int(empirical_connectome.shape[0]/2)
-        empirical_connectome = empirical_connectome[0:L_hemi_idx, 0:L_hemi_idx]
-
-    elif animal == "Marmoset":
-        empirical_connectome = np.loadtxt(path_base_data + "/" + "connectome_marmoset.txt", delimiter=",")
-
-    elif animal == "Macaque":
-        empirical_connectome = np.loadtxt(path_base_data + "/" + "connectome_macaque.txt", delimiter=",")
-    
-    elif "Mouse" in animal:
-        path_connectome = f"rh_connectome_{density_allen}.txt"
-        empirical_connectome = np.loadtxt(path_base_data + "/" + path_connectome, delimiter=",")
-
-    n_nodes = empirical_connectome.shape[0]
-    print(n_nodes, "n_nodes")
-    idxes_parcel = np.triu_indices(n_nodes, k=1)
-
-    empirical_connectome = (empirical_connectome + empirical_connectome.T)/2
-    np.fill_diagonal(empirical_connectome, 0)
-
-    if target_density != 1:
-        n_edges_empirical = int(target_density * len(idxes_parcel[0]))
-        empirical_connectome = apply_threshold_to_match_densities(empirical_connectome, n_edges_empirical, idxes_parcel)
-
-    empirical_connectome /= np.max(empirical_connectome)
-
-    if representation == "binary":
-        empirical_connectome[empirical_connectome != 0] = 1
-
-    n_edges_empirical_parcel = len(np.nonzero(empirical_connectome[idxes_parcel])[0])
-
-    if resampling_weights == "gaussian":
-        empirical_connectome = resample_matrix(empirical_connectome)
-
-    return empirical_connectome, n_edges_empirical_parcel
 
 def get_human_empirical_parcellated_connectome(path, target_density=0.1, number_of_parcels=300, connectome_type="smoothed"):
 

@@ -88,6 +88,79 @@ def generate_parcellated_GEM_humans(r_s, k, emodes, evals, idxes_vertex, idxes_p
 
     return model_parcellated_thresholded
 
+def generate_non_human_species_GEM(r_s, k, animal_parameters, resampling_weights=None):
+    
+    fixed_threshold_vertex = animal_parameters['fixed_threshold_vertex'] 
+    n_edges_empirical = animal_parameters['n_edges_empirical_parcel']
+
+    emodes = animal_parameters['emodes']
+    evals = animal_parameters['evals']
+
+    characteristic_matrix = animal_parameters['characteristic_matrix']
+    vertices_in_connectome = animal_parameters['vertices_in_connectome']
+    idxes_cortex = animal_parameters['idxes_cortex']
+
+    n_parcels = characteristic_matrix.shape[0]
+
+    idxes_parcels = np.triu_indices(n_parcels, k=1)
+
+    if idxes_cortex is not None:
+        emodes = emodes[idxes_cortex, :]
+
+    if vertices_in_connectome is not None:
+        n_vertices_connectome = len(np.nonzero(vertices_in_connectome)[0])
+        print(n_vertices_connectome, "n_vertices_connectome")
+        idxes_vertex_connectome = np.triu_indices(n_vertices_connectome, k=1)
+    else:
+        n_vertices = emodes.shape[0]
+        idxes_vertex = np.triu_indices(n_vertices, k=1)
+        idxes_vertex_connectome = idxes_vertex
+
+    evals_r_s_squared = (r_s**2) * evals
+    evals_green = 1/(1+evals_r_s_squared)
+
+    evals_green_k = evals_green[0:k]
+    Lambda_Green_k = np.diag(evals_green_k)
+
+    modes = emodes[:, 0:k]
+    modes_pinv = np.linalg.pinv(modes)
+
+    if vertices_in_connectome is not None:
+        modes = modes[vertices_in_connectome, :]
+        modes_pinv = modes_pinv[:, vertices_in_connectome]
+
+    vertexModelSC = modes @ Lambda_Green_k  @ modes_pinv
+
+    np.fill_diagonal(vertexModelSC, 0)
+
+    vertexModelSC[vertexModelSC < 0] = 0 
+
+    vertexModelSC = (vertexModelSC + vertexModelSC.T)/2
+
+    vertexModelSC_idxes = vertexModelSC[idxes_vertex_connectome]
+
+    idxes_model = np.nonzero(vertexModelSC_idxes)[0]
+
+    if vertices_in_connectome is not None:
+        vertexModelSC_thresholded =  utilities.threshold_symmetric_matrix_to_density(vertexModelSC, idxes_vertex_connectome, density=fixed_threshold_vertex)
+        
+    else:
+        vertexModelSC_thresholded = utilities.threshold_symmetric_matrix_to_density(vertexModelSC, idxes_vertex,  density=fixed_threshold_vertex)
+
+
+    model_parcellated  = utilities.downsample_high_resolution_structural_connectivity_to_atlas(vertexModelSC_thresholded,
+                                                    characteristic_matrix)
+
+
+    model_parcellated_thresholded = utilities.apply_threshold_to_match_densities(model_parcellated, n_edges_empirical, idxes_parcels)
+    model_parcellated_thresholded /= np.max(model_parcellated_thresholded)
+
+    if resampling_weights  == "gaussian":
+        model_parcellated_thresholded = utilities.resample_matrix(model_parcellated_thresholded)
+
+    return model_parcellated_thresholded
+
+
 def generate_binary_network_from_p_distribution(p_ij, upper_tri_idx, n_vertices, n_connections_vertex, total_possible_connections):
     
     sampled_indices = np.argsort(np.random.rand(total_possible_connections) / p_ij)[:n_connections_vertex]

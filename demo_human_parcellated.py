@@ -221,7 +221,7 @@ def optimize_and_save_human_parcellated_results(number_of_parcels=300):
     Notes
     -----
     - Uses job arrays for EDR-vetex, distance-atlas, Matching index (MI) and GEM formulations.
-    - Jobs call `human_vertex_models.generate_and_save_model_performance`.
+    - Jobs call `human_parcellated_models.generate_and_save_model_performance`.
     - For EDR, two chunks of jobs have to be sent, because there are 1000 jobs in total 
     """
 
@@ -349,7 +349,7 @@ def visualize_GEM_human_parcellated_results(number_of_parcels, plot_connectivity
         emodes_geo = emodes_geo[idxes_cortex, :]
         vertices = vertices[idxes_cortex, :]
     
-    distances, centroids = utilities.get_parcellated_human_centroids(number_of_parcels)
+    distances, centroids = utilities.get_parcellated_human_centroids(number_of_parcels, path_data)
 
     n_vertices = emodes_geo.shape[0]
     idxes_vertex = np.triu_indices(n_vertices, k=1)
@@ -474,7 +474,7 @@ def generate_human_parcellated_comparison_results(number_of_parcels, which_resul
 
     distances_vertex = pdist(vertices)
 
-    distances, centroids = utilities.get_parcellated_human_centroids(number_of_parcels)
+    distances, centroids = utilities.get_parcellated_human_centroids(number_of_parcels, path_data)
 
     n_nodes  = empirical_parcel_connectivity.shape[0]
     idxes_parcel = np.triu_indices(n_nodes, k=1)

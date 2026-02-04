@@ -119,7 +119,7 @@ def EDR_generate_and_save(path_data, task_id, number_of_parcels=300):
 
     print(n_edges_parcel_empirical, "n_edges_parcel_empirical")
 
-    distances, centroids = utilities.get_parcellated_human_centroids(number_of_parcels)
+    distances, centroids = utilities.get_parcellated_human_centroids(number_of_parcels, path_data)
     distances_idxes_edges_empirical = distances[idxes_edges_empirical]
 
     empirical_node_properties_dict = compute_node_properties(network_measures, empirical_parcel_connectivity, distances)
@@ -196,7 +196,7 @@ def distance_atlas_generate_and_save(path_data, number_of_parcels, repetition_id
     n_edges_parcel_empirical = len(idxes_edges_empirical)
     density = n_edges_parcel_empirical/len(idxes_parcel[0])
 
-    distances, centroids = utilities.get_parcellated_human_centroids(number_of_parcels)
+    distances, centroids = utilities.get_parcellated_human_centroids(number_of_parcels, path_data)
     distances /= np.max(distances)
 
     if connectome_type == "smoothed":
@@ -272,7 +272,7 @@ def matching_index_generate_and_save(path_data, number_of_parcels, repetition_id
     n_edges_parcel_empirical = len(idxes_edges_empirical)
     density = n_edges_parcel_empirical/len(idxes_parcel[0])
 
-    distances, centroids = utilities.get_parcellated_human_centroids(number_of_parcels)
+    distances, centroids = utilities.get_parcellated_human_centroids(number_of_parcels, path_data)
     distances /= np.max(distances)
 
     if connectome_type == "smoothed":
@@ -399,7 +399,7 @@ def generate_and_save_model_performance(number_of_parcels, path_data, r_s_id=Non
     n_vertices = emodes.shape[0]
     idxes_vertex = np.triu_indices(n_vertices, k=1)
 
-    distances, centroids = utilities.get_parcellated_human_centroids(number_of_parcels)
+    distances, centroids = utilities.get_parcellated_human_centroids(number_of_parcels, path_data)
     distances_idxes_edges_empirical = distances[idxes_edges_empirical]
 
     results_dict = {network_metric:np.empty(len(k_range)) for network_metric in network_measures}
