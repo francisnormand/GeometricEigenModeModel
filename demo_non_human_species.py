@@ -254,6 +254,22 @@ def get_non_human_species_distance_atlas_parameters(species):
     
     return eta
 
+def get_non_human_species_matching_index_parameters(species):
+    
+    if species == "Marmoset":
+        eta_list = np.linspace(-10, -1.2, 100)
+        gamma_list = np.linspace(-0.5, 0.4, 100)
+
+    elif species == "Mouse":
+        eta_list = np.linspace(-9, -2, 100)
+        gamma_list =  np.linspace(-0.05, 0.8, 100)
+    
+    elif species == "Macaque":
+        eta_list = np.linspace(-5, -0.4, 100)
+        gamma_list = np.linspace(-0.4, 0.5, 100)
+
+    return eta_list, gamma_list
+
 def get_non_human_species_mesh_and_empirical_connectome(model_parameters_and_variables, representation="weighted", resampling_weights=None):
 
     target_density = model_parameters_and_variables['target_density']
