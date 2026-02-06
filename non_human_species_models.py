@@ -149,8 +149,6 @@ def EDR_generate_and_save(species, dense_or_sparse, path_data, task_id):
 
     distances, centroids = utilities.get_non_human_species_centroids(species, path_data)
 
-    distances_idxes_edges_empirical = distances[idxes_edges_empirical]
-
     empirical_node_properties_dict = compute_node_properties(network_measures, empirical_parcel_connectivity, distances)
 
     eta_prob_connection_array, eta_prob_connection_array_split = get_non_human_species_EDR_parameters()
@@ -182,6 +180,92 @@ def EDR_generate_and_save(species, dense_or_sparse, path_data, task_id):
             compute_and_update_results(results_dict, idx_eta_prob, network_measures, modelSC, modelSC_idxes, empirical_node_properties_dict,  empirical_parcel_connectivity_idxes, idxes_edges_empirical, distances)
         # print(time.time() - start_time, "time for one eta")
 
+    for net_measure in results_dict.keys():
+        np.save(path_base_save + f"/{net_measure}_{current_hypothesis}", results_dict[net_measure])
+
+    print(f"done and saved {formulation}")
+
+def distance_atlas_generate_and_save(species, dense_or_sparse, path_data, repetition_id):
+
+    dense_or_sparse = "sparse"
+    
+    formulation = "distance-atlas"
+
+    rule="powerlaw"
+    # rule="exponential"
+
+    if rule=="exponential":
+        cost_rule = exponentialRule
+        print("exponential")
+    elif rule=="powerlaw":
+        cost_rule = powerlawRule
+        print("powerlaw")
+
+    from demo_non_human_species import get_animal_paramameters, get_non_human_species_mesh_and_empirical_connectome, get_non_human_species_distance_atlas_parameters
+
+    species_parameters = get_animal_paramameters(species, dense_or_sparse)
+
+    _, density_allen, _, _, target_density, _, resampling_weights = species_parameters
+
+
+    print(target_density, "target_density")
+
+    model_parameters_and_variables = {}
+    model_parameters_and_variables["target_density"] = target_density
+    model_parameters_and_variables["species"] = species
+    model_parameters_and_variables["density_allen"] = density_allen
+
+    _, empirical_parcel_connectivity, n_edges_empirical_parcel = get_non_human_species_mesh_and_empirical_connectome(model_parameters_and_variables)
+
+    n_nodes = empirical_parcel_connectivity.shape[0]
+    idxes_parcel = np.triu_indices(n_nodes, k=1)
+
+    empirical_parcel_connectivity = (empirical_parcel_connectivity > 0).astype(int)
+
+    empirical_parcel_connectivity_idxes = empirical_parcel_connectivity[idxes_parcel]
+    idxes_edges_empirical = np.nonzero(empirical_parcel_connectivity_idxes)[0]
+    n_edges_parcel_empirical = len(idxes_edges_empirical)
+    density = n_edges_parcel_empirical/len(idxes_parcel[0])
+
+    print(density, "density")
+
+    distances, centroids = utilities.get_non_human_species_centroids(species, path_data)
+    distances /= np.max(distances)
+
+    current_hypothesis = f"formulation={formulation}_target_density={target_density}_repetition_id_{repetition_id}"
+
+    print(f"current_hypothesis :{current_hypothesis}")
+
+    path_base_save = f"/{cwd}/data/results/non_human_species/{species}/resampled_weights_{resampling_weights}_formulation_{formulation}"
+    if not os.path.exists(path_base_save):
+        os.makedirs(path_base_save)
+
+    network_measures = ["true_positive_rate", "degreeBinary", "clustering", "node connection distance"]
+
+    print(f"target_density: {target_density}")
+    print("formulation:", formulation)
+
+    ##################################### CHECKING IF ALREADY EXISTS
+    exits = check_if_already_exists(network_measures, path_base_save, current_hypothesis)
+    if exits == True:
+        print(exits, "exits")
+        return True #Skipping
+    ##################################### 
+
+    eta = get_non_human_species_distance_atlas_parameters(species)
+
+    results_dict = {net_measure:np.empty(len(eta)) for net_measure in network_measures}
+
+    empirical_node_properties_dict = compute_node_properties(network_measures, empirical_parcel_connectivity, distances)
+
+    for idx_eta, eta_i in enumerate(eta):
+        
+        modelSC = connectome_models.generate_distance_atlas_model(eta_i, n_nodes, n_edges_parcel_empirical, distances, idxes_parcel, cost_rule)
+        modelSC_idxes = modelSC[idxes_parcel]
+
+        if len(network_measures) != 0:
+            compute_and_update_results(results_dict, idx_eta, network_measures, modelSC, modelSC_idxes, empirical_node_properties_dict,  empirical_parcel_connectivity_idxes, idxes_edges_empirical, distances)
+    
     for net_measure in results_dict.keys():
         np.save(path_base_save + f"/{net_measure}_{current_hypothesis}", results_dict[net_measure])
 
@@ -341,14 +425,14 @@ if __name__ == "__main__":
         # Manual input here instead of call from command line 
         
         # formulation = "GEM"
-        formulation = "EDR-vertex"
-        # formulation = "distance-atlas"
+        # formulation = "EDR-vertex"
+        formulation = "distance-atlas"
         # formulation = "MI"
 
     if species == None:
-        species = "Mouse"
+        # species = "Mouse"
         # species = "Marmoset"
-        # species = "Macaque"
+        species = "Macaque"
 
     if dense_or_sparse == None:
         dense_or_sparse = "dense"

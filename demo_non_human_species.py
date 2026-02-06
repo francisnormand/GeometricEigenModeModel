@@ -221,11 +221,11 @@ def get_animal_paramameters(animal, dense_or_sparse="dense"):
         if dense_or_sparse == "dense":
             density_allen = "raw"
             fixed_threshold_vertex = 0.2
-            target_density = 1
+            target_density = 0.9
         else:
             density_allen = "thr"
             fixed_threshold_vertex = 0.6
-            target_density = 0.9
+            target_density = "thr"
 
     if animal != "Mouse":
         density_allen = None
@@ -240,6 +240,19 @@ def get_non_human_species_EDR_parameters():
     eta_prob_connection_array_split = np.array_split(eta_prob_connection_array, 100)
 
     return eta_prob_connection_array, eta_prob_connection_array_split
+
+def get_non_human_species_distance_atlas_parameters(species):
+
+    if species == "Marmoset":
+        eta = np.linspace(-15, 2, 10000)
+
+    elif species == "Macaque":
+        eta = np.linspace(-10, 2, 10000)
+
+    elif species == "Mouse":
+        eta = np.linspace(-15, 2, 10000)
+    
+    return eta
 
 def get_non_human_species_mesh_and_empirical_connectome(model_parameters_and_variables, representation="weighted", resampling_weights=None):
 
@@ -268,9 +281,9 @@ def get_non_human_species_mesh_and_empirical_connectome(model_parameters_and_var
     empirical_connectome = (empirical_connectome + empirical_connectome.T)/2
     np.fill_diagonal(empirical_connectome, 0)
 
-    if target_density != 1:
+    if target_density != 1 and species != "Mouse":
         n_edges_empirical = int(target_density * len(idxes_parcel[0]))
-        empirical_connectome = applyThresholdToMatchDensities(empirical_connectome, n_edges_empirical, idxes_parcel)
+        empirical_connectome = utilities.apply_threshold_to_match_densities(empirical_connectome, n_edges_empirical, idxes_parcel)
 
     empirical_connectome /= np.max(empirical_connectome)
 
