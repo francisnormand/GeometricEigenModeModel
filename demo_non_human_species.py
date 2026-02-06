@@ -12,7 +12,15 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import pandas as pd
 
-def generate_slurm_script(num_tasks, script_path, formulation):
+def generate_slurm_script(num_tasks, script_path, formulation, species):
+    if species == "Marmoset":
+        time_limit = 4
+        memory_request = f"""#SBATCH --cpus-per-task=2
+#SBATCH --mem-per-cpu=20G"""
+    else:
+        time_limit = 1
+        memory_request = f""" """
+
     """ Generate the SLURM script for the job array. """
     slurm_script = f"""#!/bin/bash
 
@@ -21,10 +29,9 @@ def generate_slurm_script(num_tasks, script_path, formulation):
 
 #SBATCH --array=0-{num_tasks-1}
 
-#SBATCH --cpus-per-task=2
-#SBATCH --mem-per-cpu=20G 
+{memory_request}
 
-#SBATCH --time=03:00:00
+#SBATCH --time=0{time_limit}:00:00
 
 echo "Processing Id" $SLURM_ARRAY_TASK_ID
 
@@ -34,7 +41,7 @@ source {env_path}/bin/activate
 conda activate {conda_env_name}
 
 # Execute the Python script with the array index and arguments
-python {script_path} --r_s_id $SLURM_ARRAY_TASK_ID --formulation {formulation} --path_data {path_data}
+python {script_path} --r_s_id $SLURM_ARRAY_TASK_ID --formulation {formulation} --path_data {path_data} --species {species}
 echo "Done"
 """
     return slurm_script
@@ -59,7 +66,7 @@ def wait_for_job(jobid):
         print(f"Waiting for job {jobid} to finish...")
         time.sleep(300)  # check every 5 minutes
 
-def generate_slurm_script_chunks(start_idx, end_idx, script_path, formulation):
+def generate_slurm_script_chunks(start_idx, end_idx, script_path, formulation, species):
     
     headers = [
         "#!/bin/bash",
@@ -75,12 +82,12 @@ echo "Processing Id" $SLURM_ARRAY_TASK_ID
 source {env_path}/bin/activate
 conda activate {conda_env_name}
 
-python {script_path} --r_s_id $SLURM_ARRAY_TASK_ID --formulation {formulation} --path_data {path_data}
+python {script_path} --r_s_id $SLURM_ARRAY_TASK_ID --formulation {formulation} --path_data {path_data} --species {species}
 echo "Done"
 """
     return "\n".join(headers) + body
 
-def submit_slurm_jobs_chunks(num_tasks, script_path, formulation, path_data, chunk_size=500):
+def submit_slurm_jobs_chunks(num_tasks, script_path, formulation, path_data, species, chunk_size=500):
     import math
     num_chunks = math.ceil(num_tasks / chunk_size)
 
@@ -89,7 +96,7 @@ def submit_slurm_jobs_chunks(num_tasks, script_path, formulation, path_data, chu
         start_idx = i * chunk_size
         end_idx = min((i+1)*chunk_size - 1, num_tasks - 1)
 
-        slurm_script = generate_slurm_script_chunks(start_idx, end_idx, script_path, formulation)
+        slurm_script = generate_slurm_script_chunks(start_idx, end_idx, script_path, formulation, species)
         slurm_file = f"run_array_{i}.sh"
         with open(slurm_file, "w") as f:
             f.write(slurm_script)
@@ -156,7 +163,7 @@ def generate_geometric_modes(species):
         np.save(output_emode_filename, eigenmodes)
     
     else:
-        _, _, _, _, mean_or_sum, _, _, _, _ = get_animal_paramameters(species)
+        _, _, mean_or_sum, _, _, _, _ = get_animal_paramameters(species)
         loaded_parameters_and_variables = np.load(path_data + f"/{species}/{species}_parc_scheme={mean_or_sum}_saved_parameters_and_variables.npy", allow_pickle=True).item()
         idxes_cortex = loaded_parameters_and_variables['idxes_cortex']
         n_vertices = mesh.v.shape[0]
@@ -227,6 +234,13 @@ def get_animal_paramameters(animal, dense_or_sparse="dense"):
 
     return surface_name, density_allen, mean_or_sum, r_s_values_list, target_density, fixed_threshold_vertex, resampling_weights
 
+def get_non_human_species_EDR_parameters():
+
+    eta_prob_connection_array = np.linspace(0, 15, 10000)
+    eta_prob_connection_array_split = np.array_split(eta_prob_connection_array, 100)
+
+    return eta_prob_connection_array, eta_prob_connection_array_split
+
 def get_non_human_species_mesh_and_empirical_connectome(model_parameters_and_variables, representation="weighted", resampling_weights=None):
 
     target_density = model_parameters_and_variables['target_density']
@@ -295,7 +309,7 @@ def optimize_and_save_non_human_species_results(species, dense_or_sparse):
     # formulation = "distance-atlas" 
     # formulation = "MI"
 
-    surface_name, mesh_type, connectome_type, density_allen, mean_or_sum, r_s_values_list, target_density, fixed_threshold_vertex, resampling_weights = get_animal_paramameters(species, dense_or_sparse=dense_or_sparse) 
+    surface_name, density_allen, mean_or_sum, r_s_values_list, target_density, fixed_threshold_vertex, resampling_weights = get_animal_paramameters(species, dense_or_sparse=dense_or_sparse) 
     
     if formulation == "GEM":
         # GEM has 50 parameters, only once each
@@ -319,13 +333,14 @@ def optimize_and_save_non_human_species_results(species, dense_or_sparse):
                 script_path=script_path,
                 formulation=formulation,
                 path_data=path_data,
+                species=species,
                 chunk_size=chunk_size,  # adjust chunk size if needed
             )
             print("submitting chunks of a job array")
 
         else:
             # Generate and submit the SLURM job array
-            slurm_script = generate_slurm_script(num_jobs, script_path, formulation)
+            slurm_script = generate_slurm_script(num_jobs, script_path, formulation, species)
             submit_slurm_job(slurm_script)
             print("submitted job array")
     
@@ -362,9 +377,9 @@ def mainFunction():
 
     These functions have to be run sequentially.
     """
-
-    species = "Mouse" # Has both dense and sparse
-    # species = "Marmoset" # Dense only
+    
+    # species = "Mouse" # Has both dense and sparse
+    species = "Marmoset" # Dense only
     # species = "Macaque" # Has both dense and sparse
 
     dense_or_sparse = "dense"

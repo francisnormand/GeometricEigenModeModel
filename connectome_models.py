@@ -109,7 +109,6 @@ def generate_non_human_species_GEM(r_s, k, animal_parameters, resampling_weights
 
     if vertices_in_connectome is not None:
         n_vertices_connectome = len(np.nonzero(vertices_in_connectome)[0])
-        print(n_vertices_connectome, "n_vertices_connectome")
         idxes_vertex_connectome = np.triu_indices(n_vertices_connectome, k=1)
     else:
         n_vertices = emodes.shape[0]
@@ -221,6 +220,28 @@ def generate_EDR_vertex_parcellated_model(eta_prob_connection, eta_w, distances_
     modelSC = utilities.downsample_high_resolution_structural_connectivity_to_atlas(vertexModelSC, characteristic_matrix)
     modelSC = utilities.apply_threshold_to_match_densities(modelSC, n_edges_parcel_empirical, idxes_parcel)
 
+    modelSC /= np.max(modelSC)
+
+    return modelSC
+
+def generate_EDR_non_human_species_model(eta, model_parameters_and_variables):
+
+    characteristic_matrix = model_parameters_and_variables["characteristic_matrix"]
+    idxes_vertex = model_parameters_and_variables['idxes_vertex']
+    n_edges_empirical_parcel = model_parameters_and_variables['n_edges_empirical_parcel']
+    distances_vertices = model_parameters_and_variables['distances_vertices']
+    idxes_parcel = model_parameters_and_variables['idxes_parcel']
+    n_vertices = model_parameters_and_variables['n_vertices']
+    total_possible_connections = model_parameters_and_variables['total_possible_connections']
+    n_connections_vertex = model_parameters_and_variables['n_connections_vertex']
+
+    p_ij = np.exp(-eta * distances_vertices)
+    p_ij /= np.sum(p_ij)
+
+    vertexModelSC_thresholded = generate_binary_network_from_p_distribution(p_ij, idxes_vertex, n_vertices, n_connections_vertex, total_possible_connections)
+
+    modelSC  = utilities.downsample_high_resolution_structural_connectivity_to_atlas(vertexModelSC_thresholded, characteristic_matrix)
+    modelSC = utilities.apply_threshold_to_match_densities(modelSC, n_edges_empirical_parcel, idxes_parcel)
     modelSC /= np.max(modelSC)
 
     return modelSC
