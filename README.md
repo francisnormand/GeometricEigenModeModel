@@ -4,7 +4,7 @@
   <img src="data/cover.png" alt="data/cover.png" width="100%">
 </p>
 
-Code and data for the manuscript "Geometric constraints on the architecture of mammalian cortical connectomes
+Code and data for the manuscript "Geometric constraints on the architecture of mammalian cortical connectomes"
 
 ---
 
@@ -26,9 +26,9 @@ Each folder downloaded from OSF needs to be placed in the "data/" folder structu
 
 The repository includes an `environment.yml` file to recreate the python environment used for the analyses. 
 
-The (hacky) last line ensures that multiple jobs can be run at the same time within the environment (on Massive).
+The (hacky) last line ensures that multiple jobs can be run at the same time within the environment (on a cluster).
 
-(LAST LINE SEEM TO BE ONLY NECESSARY ON LINUX BECAUSE IT WORKS WITHOUT IT ON MAC)
+(LAST LINE SEEMS TO BE ONLY NECESSARY ON LINUX BECAUSE IT WORKS WITHOUT IT ON MAC)
 
 ```bash
 conda env create -f environment.yml
