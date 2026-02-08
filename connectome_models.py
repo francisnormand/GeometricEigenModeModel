@@ -99,6 +99,7 @@ def generate_non_human_species_GEM(r_s, k, animal_parameters, resampling_weights
     characteristic_matrix = animal_parameters['characteristic_matrix']
     vertices_in_connectome = animal_parameters['vertices_in_connectome']
     idxes_cortex = animal_parameters['idxes_cortex']
+    cortex_mask = animal_parameters['cortex_mask'] 
 
     n_parcels = characteristic_matrix.shape[0]
 
@@ -119,6 +120,10 @@ def generate_non_human_species_GEM(r_s, k, animal_parameters, resampling_weights
     Lambda_Green_k = np.diag(evals_green_k)
 
     modes = emodes[:, 0:k]
+    if cortex_mask == True:
+        modes = modes[idxes_cortex, :]
+
+
     modes_pinv = np.linalg.pinv(modes)
 
     if vertices_in_connectome is not None:
@@ -137,16 +142,18 @@ def generate_non_human_species_GEM(r_s, k, animal_parameters, resampling_weights
 
     idxes_model = np.nonzero(vertexModelSC_idxes)[0]
 
-    vertexModelSC_thresholded = utilities.threshold_symmetric_matrix_to_density(vertexModelSC, idxes_vertex,  density=fixed_threshold_vertex)
+    vertexModelSC_thresholded = utilities.threshold_symmetric_matrix_to_density(vertexModelSC, idxes_vertex_connectome,  density=fixed_threshold_vertex)
 
 
     model_parcellated  = utilities.downsample_high_resolution_structural_connectivity_to_atlas(vertexModelSC_thresholded,
                                                     characteristic_matrix)
 
-    print(np.count_nonzero(model_parcellated[idxes_parcels]), "count nnz model parcellated")
+    # print(np.count_nonzero(model_parcellated[idxes_parcels]), "count nnz model parcellated")
     
     model_parcellated_thresholded = utilities.apply_threshold_to_match_densities(model_parcellated, n_edges_empirical, idxes_parcels)
     model_parcellated_thresholded /= np.max(model_parcellated_thresholded)
+
+    # print(np.count_nonzero(model_parcellated_thresholded[idxes_parcels]), "count nnz model parcellated thresholded")
 
     if resampling_weights  == "gaussian":
         model_parcellated_thresholded = utilities.resample_matrix(model_parcellated_thresholded)

@@ -472,6 +472,7 @@ def visualize_GEM_non_human_species_results(species, dense_or_sparse):
     model_parameters_and_variables["characteristic_matrix"] = loaded_parameters_and_variables['characteristic_matrix']
     model_parameters_and_variables['vertices_in_connectome'] = loaded_parameters_and_variables["vertices_in_connectome"]
     model_parameters_and_variables['idxes_cortex'] = idxes_cortex
+    model_parameters_and_variables['cortex_mask'] = cortex_mask
 
     print(model_parameters_and_variables['vertices_in_connectome'], "vertices in connectome")
 
@@ -483,6 +484,9 @@ def visualize_GEM_non_human_species_results(species, dense_or_sparse):
     model_parameters_and_variables['n_edges_empirical_parcel'] = n_edges_empirical_parcel
 
     evals, emodes = load_non_human_species_modes(species, lump=False)
+
+    emodes = emodes[:, 0:k_range.max()+1]
+    evals = evals[0:k_range.max()+1]
 
     model_parameters_and_variables["evals"] = evals
     model_parameters_and_variables["emodes"] = emodes
@@ -499,15 +503,9 @@ def visualize_GEM_non_human_species_results(species, dense_or_sparse):
     print(density, "density empirical")
     print(n_edges_parcel_empirical, "n_edges_parcel_empirical")
 
-    if cortex_mask == True:
-        idxes_cortex = np.where(cortex_mask_array == 1)[0]
-        emodes = emodes[idxes_cortex, :]
-        print(cortex_mask, "cortex mask is true")
-
     print(cortex_mask, "cortex mask")
     
-    emodes = emodes[:, 0:k_range.max()+1]
-    evals = evals[0:k_range.max()+1]
+    
     n_vertices = emodes.shape[0]
     idxes_vertex = np.triu_indices(n_vertices, k=1)
 
@@ -570,8 +568,8 @@ def mainFunction():
     These functions have to be run sequentially.
     """
     
-    species = "Mouse" # Has both dense and sparse
-    # species = "Marmoset" # Dense only
+    # species = "Mouse" # Has both dense and sparse
+    species = "Marmoset" # Dense only
     # species = "Macaque" # Has both dense and sparse
 
     dense_or_sparse = "dense"

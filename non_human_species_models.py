@@ -385,6 +385,7 @@ def generate_and_save_model_performance(species, dense_or_sparse, path_data, r_s
 
     model_parameters_and_variables = {}
     model_parameters_and_variables["target_density"] = target_density
+    model_parameters_and_variables['cortex_mask'] = cortex_mask
     model_parameters_and_variables["species"] = species
     model_parameters_and_variables["density_allen"] = density_allen
     model_parameters_and_variables['fixed_threshold_vertex'] = fixed_threshold_vertex
@@ -397,12 +398,16 @@ def generate_and_save_model_performance(species, dense_or_sparse, path_data, r_s
     
     model_parameters_and_variables['n_edges_empirical_parcel'] = n_edges_empirical_parcel
 
+
     evals, emodes = load_non_human_species_modes(species, lump=False)
+    
+    k_range = np.array([k_ for k_ in range(2, 200)])
+
+    emodes = emodes[:, 0:k_range.max()+1]
+    evals = evals[0:k_range.max()+1]
 
     model_parameters_and_variables["evals"] = evals
     model_parameters_and_variables["emodes"] = emodes
-
-    k_range = np.array([k_ for k_ in range(2, 200)])
 
     if formulation == "GEM":
         network_measures = ["degree", "true_positive_rate", "degreeBinary", "spearman_union_weights", "ranked_weights_strength", "clustering", "node connection distance"]
@@ -442,15 +447,6 @@ def generate_and_save_model_performance(species, dense_or_sparse, path_data, r_s
     density = n_edges_parcel_empirical/len(idxes_parcel[0])
 
     print(n_edges_parcel_empirical, "n_edges_parcel_empirical")
-
-    if cortex_mask == True:
-        idxes_cortex = np.where(cortex_mask_array == 1)[0]
-        emodes = emodes[idxes_cortex, :]
-    
-    emodes = emodes[:, 0:k_range.max()+1]
-    evals = evals[0:k_range.max()+1]
-    n_vertices = emodes.shape[0]
-    idxes_vertex = np.triu_indices(n_vertices, k=1)
 
     distances, centroids = utilities.get_non_human_species_centroids(species, path_data)
 
@@ -504,18 +500,19 @@ if __name__ == "__main__":
     if formulation is None:
         # Manual input here instead of call from command line 
         
-        # formulation = "GEM"
+        formulation = "GEM"
         # formulation = "EDR-vertex"
         # formulation = "distance-atlas"
-        formulation = "MI"
+        # formulation = "MI"
 
     if species == None:
         # species = "Mouse"
-        # species = "Marmoset"
-        species = "Macaque"
+        species = "Marmoset"
+        # species = "Macaque"
 
     if dense_or_sparse == None:
         dense_or_sparse = "dense"
+        # dense_or_sparse = "sparse"
         
     generate_and_save_model_performance(species, dense_or_sparse, path_data, r_s_id, formulation)
 

@@ -649,10 +649,10 @@ def plot_scatter_results(scatter_measures, vertexModelSC, vertexModelSC_threshol
                 linewidth=linewidth_node
             )
 
-        # slope, intercept, _, _, _ = linregress(x, y)
-        # x_fit = np.linspace(np.min(x), np.max(x), 100)
-        # y_fit = slope * x_fit + intercept
-        # plt.plot(x_fit, y_fit, color='black', linestyle="--", linewidth=1, alpha=0.7, zorder=10, label='_nolegend_')
+        slope, intercept, _, _, _ = linregress(x, y)
+        x_fit = np.linspace(np.min(x), np.max(x), 100)
+        y_fit = slope * x_fit + intercept
+        plt.plot(x_fit, y_fit, color='black', linestyle="--", linewidth=1, alpha=0.7, zorder=10, label='_nolegend_')
 
         # Legend showing only rho and p
         legend_label = r"$\rho$ = {:.2f}, $p$ = {:.1e}".format(corr_, pval_)
