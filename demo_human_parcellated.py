@@ -315,7 +315,7 @@ def visualize_GEM_human_parcellated_results(number_of_parcels, plot_connectivity
 
     dimension_files = (len(r_s_values_list), len(k_range))
 
-    heatmaps_dict, args_optimal = utilities.grab_human_vertex_heatmaps(optimization_metric_list, directory, network_measures, dimension_files, r_s_values_list, formulation, target_density, connectome_type, fwhm, plot_all=False, plot_opt=False)
+    heatmaps_dict, args_optimal = utilities.grab_results_heatmaps(optimization_metric_list, directory, network_measures, dimension_files, r_s_values_list, formulation, target_density, connectome_type, fwhm, plot_all=False, plot_opt=False)
     # plt.show() # set the arguments above to 'True' to visualize optimization landscape
 
     print()
@@ -385,7 +385,7 @@ def visualize_GEM_human_parcellated_results(number_of_parcels, plot_connectivity
     alpha_node = 0.8
     alpha_edge = 0.6
 
-    utilities.plot_human_vertex_scatter_splots(scatter_measures, geometric_model, geometric_model_idxes, empirical_parcel_connectivity_idxes, node_properties_model_dict, empirical_node_properties_dict, distances, scatter_node_size=scatter_node_size, scatter_edge_size=scatter_edge_size, alpha_node=alpha_node, alpha_edge=alpha_edge, measure_colors=measure_colors)
+    utilities.plot_scatter_results(scatter_measures, geometric_model, geometric_model_idxes, empirical_parcel_connectivity_idxes, node_properties_model_dict, empirical_node_properties_dict, distances, scatter_node_size=scatter_node_size, scatter_edge_size=scatter_edge_size, alpha_node=alpha_node, alpha_edge=alpha_edge, measure_colors=measure_colors)
     plt.show()
 
 def generate_human_parcellated_comparison_results(number_of_parcels, which_results):
@@ -501,7 +501,7 @@ def generate_human_parcellated_comparison_results(number_of_parcels, which_resul
 
     if formulation_generate == formulation_GEM:
         dimension_files_geo = (len(r_s_values_list), len(k_range))
-        heatmaps_dict, args_optimal = utilities.grab_human_vertex_heatmaps(optimization_metric_list, directory, network_measures, dimension_files_geo, r_s_values_list, formulation_generate, target_density, connectome_type, fwhm)    
+        heatmaps_dict, args_optimal = utilities.grab_results_heatmaps(optimization_metric_list, directory, network_measures, dimension_files_geo, r_s_values_list, formulation_generate, target_density, connectome_type, fwhm)    
         
         best_r_s = r_s_values_list[args_optimal[0][0]]
         best_k = k_range[args_optimal[1][0]]

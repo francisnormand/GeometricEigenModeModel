@@ -11,6 +11,7 @@ from network_measures_and_statistics import compute_node_properties
 import matplotlib.pyplot as plt
 import networkx as nx
 import pandas as pd
+import connectome_models
 
 def generate_slurm_script(num_tasks, script_path, formulation, species):
     if species == "Marmoset":
@@ -220,11 +221,11 @@ def get_animal_paramameters(animal, dense_or_sparse="dense"):
         
         if dense_or_sparse == "dense":
             density_allen = "raw"
-            fixed_threshold_vertex = 0.2
+            fixed_threshold_vertex = 0.6
             target_density = 0.9
         else:
             density_allen = "thr"
-            fixed_threshold_vertex = 0.6
+            fixed_threshold_vertex = 0.2
             target_density = "thr"
 
     if animal != "Mouse":
@@ -297,7 +298,7 @@ def get_non_human_species_mesh_and_empirical_connectome(model_parameters_and_var
     empirical_connectome = (empirical_connectome + empirical_connectome.T)/2
     np.fill_diagonal(empirical_connectome, 0)
 
-    if target_density != 1 and species != "Mouse":
+    if target_density != 1:
         n_edges_empirical = int(target_density * len(idxes_parcel[0]))
         empirical_connectome = utilities.apply_threshold_to_match_densities(empirical_connectome, n_edges_empirical, idxes_parcel)
 
@@ -382,6 +383,168 @@ def optimize_and_save_non_human_species_results(species, dense_or_sparse):
             print("---------------------------------")
             generate_and_save_model_performance(species, dense_or_sparse, path_data, r_s_id=job_id, formulation=formulation)
 
+
+
+def optimization_metric_species(species, dense_or_sparse):
+    if species == "Mouse" and dense_or_sparse == "dense":
+        return ["ranked_weights_strength", "spearman_union_weights"]
+    if species == "Macaque" and dense_or_sparse == "dense":
+        return ["ranked_weights_strength", "spearman_union_weights"]
+    else:
+        return ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]
+
+
+def visualize_GEM_non_human_species_results(species, dense_or_sparse):
+    """
+    Visualize scatter plots for the GEM performance.
+    """
+    plot_connectivity_matrices = True
+
+    lump = False
+
+    cmap = utilities.get_colormap()
+
+    color_optimized = cmap(0.8)
+    color_not_optimized = color_optimized
+
+    lump = False ## Fixed. Will override previous files if changed.
+
+    species_parameters = get_animal_paramameters(species, dense_or_sparse)
+    surface_name, density_allen, mean_or_sum, r_s_values_list, target_density, fixed_threshold_vertex, resampling_weights = species_parameters
+    
+    loaded_parameters_and_variables = np.load(path_data + f"/{species}/{species}_parc_scheme={mean_or_sum}_saved_parameters_and_variables.npy", allow_pickle=True).item()
+    mesh, _ = utilities.get_non_human_species_mesh(path_data, species)
+    
+    formulation = "GEM"
+
+    directory = f"/{cwd}/data/results/non_human_species/{species}/resampled_weights_{resampling_weights}_formulation_{formulation}"
+    k_range = np.array([k_ for k_ in range(2, 200)])
+
+    network_measures = ["degree", "true_positive_rate", "degreeBinary", "spearman_union_weights", "ranked_weights_strength", "node connection distance", "clustering"]
+    
+    scatter_measures = ["degreeBinary", "common_weights", "ranked_weights_strength", "node connection distance", "clustering"]
+
+    optimization_metric_list = optimization_metric_species(species, dense_or_sparse)
+
+    measure_colors = {
+    measure: (color_optimized if measure in optimization_metric_list or measure=="common_weights" else color_not_optimized)
+    for measure in scatter_measures
+    }
+
+    dimension_files = (len(r_s_values_list), len(k_range))
+
+    connectome_type = "atlas_species"
+    fwhm = None
+    heatmaps_dict, args_optimal = utilities.grab_results_heatmaps(optimization_metric_list, directory, network_measures, dimension_files, r_s_values_list, formulation, target_density, connectome_type, fwhm, plot_all=False, plot_opt=False)
+    # plt.show() # set the arguments above to 'True' to visualize optimization landscape
+
+    print()
+    print("optimized network measures")
+    for net_measure in network_measures:
+        print(net_measure, f"opt score={heatmaps_dict[net_measure][args_optimal]}")
+    print()
+
+    best_r_s = r_s_values_list[args_optimal[0][0]]
+    best_k = k_range[args_optimal[1][0]]
+
+    print()
+    print("optimized r_s = ", best_r_s)
+    print("optimized k = ", best_k)
+    print()
+
+    if species != "Mouse":
+        n_vertices = mesh.v.shape[0]
+        idxes_cortex = loaded_parameters_and_variables['idxes_cortex']
+        cortex_mask_array = np.zeros(n_vertices)
+        cortex_mask_array[idxes_cortex] = 1
+        cortex_mask_array = cortex_mask_array.astype(int)
+        cortex_mask = True
+    else:
+        cortex_mask= False
+        idxes_cortex = None
+
+    model_parameters_and_variables = {}
+    model_parameters_and_variables["target_density"] = target_density
+    model_parameters_and_variables["species"] = species
+    model_parameters_and_variables["density_allen"] = density_allen
+    model_parameters_and_variables['fixed_threshold_vertex'] = fixed_threshold_vertex
+
+    model_parameters_and_variables["characteristic_matrix"] = loaded_parameters_and_variables['characteristic_matrix']
+    model_parameters_and_variables['vertices_in_connectome'] = loaded_parameters_and_variables["vertices_in_connectome"]
+    model_parameters_and_variables['idxes_cortex'] = idxes_cortex
+
+    print(model_parameters_and_variables['vertices_in_connectome'], "vertices in connectome")
+
+    print(density_allen, "density allen")
+    print(target_density, "target_density")
+    
+    _, empirical_parcel_connectivity, n_edges_empirical_parcel = get_non_human_species_mesh_and_empirical_connectome(model_parameters_and_variables)
+    
+    model_parameters_and_variables['n_edges_empirical_parcel'] = n_edges_empirical_parcel
+
+    evals, emodes = load_non_human_species_modes(species, lump=False)
+
+    model_parameters_and_variables["evals"] = evals
+    model_parameters_and_variables["emodes"] = emodes
+
+    n_nodes = empirical_parcel_connectivity.shape[0]
+    idxes_parcel = np.triu_indices(n_nodes, k=1)
+
+    empirical_parcel_connectivity_idxes = empirical_parcel_connectivity[idxes_parcel]
+    idxes_edges_empirical = np.nonzero(empirical_parcel_connectivity_idxes)[0]
+    n_edges_parcel_empirical = len(idxes_edges_empirical)
+    density = n_edges_parcel_empirical/len(idxes_parcel[0])
+
+    print(fixed_threshold_vertex, "fixed_threshold_vertex")
+    print(density, "density empirical")
+    print(n_edges_parcel_empirical, "n_edges_parcel_empirical")
+
+    if cortex_mask == True:
+        idxes_cortex = np.where(cortex_mask_array == 1)[0]
+        emodes = emodes[idxes_cortex, :]
+        print(cortex_mask, "cortex mask is true")
+
+    print(cortex_mask, "cortex mask")
+    
+    emodes = emodes[:, 0:k_range.max()+1]
+    evals = evals[0:k_range.max()+1]
+    n_vertices = emodes.shape[0]
+    idxes_vertex = np.triu_indices(n_vertices, k=1)
+
+    distances, centroids = utilities.get_non_human_species_centroids(species, path_data)
+
+    if plot_connectivity_matrices == True:
+        utilities.plotConnectivity(empirical_parcel_connectivity, idxes_parcel, figsize=(13,11), original_cmap=cmap, show_cbar=True)
+        plt.title("Empirical parcel connectome")
+        # plt.show()
+
+    # best_r_s = 0.49
+    # best_k = 9
+    geometric_model = connectome_models.generate_non_human_species_GEM(best_r_s, best_k, model_parameters_and_variables, resampling_weights=resampling_weights)
+    
+    if plot_connectivity_matrices == True:
+        utilities.plotConnectivity(geometric_model, idxes_parcel, figsize=(13,11), original_cmap=cmap, show_cbar=True)
+        plt.title("GEM")
+        # plt.show()
+
+    geometric_model_idxes = geometric_model[idxes_parcel]
+
+    print(np.count_nonzero(geometric_model_idxes)/len(idxes_parcel[0]), "density model")
+    # sys.exit()
+    node_properties_model_dict = compute_node_properties(scatter_measures, geometric_model, distances)
+
+    scatter_node_size = 70
+    scatter_edge_size = 35
+
+    alpha_node = 0.8
+    alpha_edge = 0.6
+    
+    empirical_node_properties_dict = compute_node_properties(network_measures, empirical_parcel_connectivity, distances)
+
+    utilities.plot_scatter_results(scatter_measures, geometric_model, geometric_model_idxes, empirical_parcel_connectivity_idxes, node_properties_model_dict, empirical_node_properties_dict, distances, scatter_node_size=scatter_node_size, scatter_edge_size=scatter_edge_size, alpha_node=alpha_node, alpha_edge=alpha_edge, measure_colors=measure_colors)
+    plt.show()
+
+
 # Current working director
 cwd = os.getcwd()
 
@@ -407,8 +570,8 @@ def mainFunction():
     These functions have to be run sequentially.
     """
     
-    # species = "Mouse" # Has both dense and sparse
-    species = "Marmoset" # Dense only
+    species = "Mouse" # Has both dense and sparse
+    # species = "Marmoset" # Dense only
     # species = "Macaque" # Has both dense and sparse
 
     dense_or_sparse = "dense"
@@ -417,11 +580,11 @@ def mainFunction():
     # generate_geometric_modes(species)
 
     # 2. Optimize the GEM (explore parameters landscape)
-    optimize_and_save_non_human_species_results(species, dense_or_sparse)
+    # optimize_and_save_non_human_species_results(species, dense_or_sparse)
     # print()
 
     #3. Visualize performance
-    # visualize_GEM_non_human_species_results(species)
+    visualize_GEM_non_human_species_results(species, dense_or_sparse)
 
 
     # results = "main"

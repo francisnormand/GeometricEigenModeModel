@@ -324,7 +324,7 @@ def visualize_GEM_human_vertex_results(plot_connectivity_matrices=False):
 
     dimension_files = (len(r_s_values_list), len(k_range))
 
-    heatmaps_dict, args_optimal = utilities.grab_human_vertex_heatmaps(optimization_metric_list, directory, network_measures, dimension_files, r_s_values_list, formulation, target_density, connectome_type, fwhm, plot_all=False, plot_opt=False)
+    heatmaps_dict, args_optimal = utilities.grab_results_heatmaps(optimization_metric_list, directory, network_measures, dimension_files, r_s_values_list, formulation, target_density, connectome_type, fwhm, plot_all=False, plot_opt=False)
     # plt.show() # set the arguments above to 'True' to visualize optimization landscape
 
     print()
@@ -385,7 +385,7 @@ def visualize_GEM_human_vertex_results(plot_connectivity_matrices=False):
     geometric_model_idxes = geometric_model[idxes_vertex]
     node_properties_model_dict = compute_node_properties(scatter_measures, geometric_model, distances)
 
-    utilities.plot_human_vertex_scatter_splots(scatter_measures, geometric_model, geometric_model_idxes, empirical_vertex_connectivity_idxes, node_properties_model_dict, empirical_node_properties_dict, distances, measure_colors)
+    utilities.plot_scatter_results(scatter_measures, geometric_model, geometric_model_idxes, empirical_vertex_connectivity_idxes, node_properties_model_dict, empirical_node_properties_dict, distances, measure_colors)
     plt.show()
     
 def get_human_vertex_parameters():
@@ -535,7 +535,7 @@ def generate_human_vertex_comparison_results(which_results="main"):
 
     if formulation_generate == formulation_GEM:
         dimension_files_geo = (len(r_s_values_list), len(k_range))
-        heatmaps_dict, args_optimal = utilities.grab_human_vertex_heatmaps(optimization_metric_list, directory, network_measures, dimension_files_geo, r_s_values_list, formulation_generate, target_density, connectome_type, fwhm)    
+        heatmaps_dict, args_optimal = utilities.grab_results_heatmaps(optimization_metric_list, directory, network_measures, dimension_files_geo, r_s_values_list, formulation_generate, target_density, connectome_type, fwhm)    
         
         best_r_s = r_s_values_list[args_optimal[0][0]]
         best_k = k_range[args_optimal[1][0]]
@@ -606,7 +606,7 @@ def generate_human_vertex_comparison_results(which_results="main"):
         dimension_files_geo = (len(r_s_values_list), len(k_range))
         # Loading the results from formulation_GEM.
         directory_exception = f"{cwd}/data/results/human_high_resolution/{connectome_type}_resampled_weights_{resampling_weights}_formulation_{formulation_GEM}"
-        heatmaps_dict, args_optimal = utilities.grab_human_vertex_heatmaps(optimization_metric_list, directory_exception, network_measures, dimension_files_geo, r_s_values_list, formulation_GEM, target_density, connectome_type, fwhm)    
+        heatmaps_dict, args_optimal = utilities.grab_results_heatmaps(optimization_metric_list, directory_exception, network_measures, dimension_files_geo, r_s_values_list, formulation_GEM, target_density, connectome_type, fwhm)    
         
         best_r_s = r_s_values_list[args_optimal[0][0]]
         best_k = k_range[args_optimal[1][0]]

@@ -382,7 +382,7 @@ def plotHumanOptLandscape(heatMap_average_opt, best_params, xticks=False, yticks
                         linewidth=0.6, edgecolor='white', facecolor='none')
         ax.add_patch(rect)
 
-def grab_human_vertex_heatmaps(optimization_metric_list, directory, network_measures, dimension_files, r_s_values_list_for_files, formulation, target_density, connectome_type, fwhm=None, plot_all=False, plot_opt=False):
+def grab_results_heatmaps(optimization_metric_list, directory, network_measures, dimension_files, r_s_values_list_for_files, formulation, target_density, connectome_type, fwhm=None, plot_all=False, plot_opt=False):
 
     heatmaps_dict = {}
     missings = []
@@ -393,8 +393,10 @@ def grab_human_vertex_heatmaps(optimization_metric_list, directory, network_meas
         for idx_r, r_s in enumerate(r_s_values_list_for_files):
             if "unsmoothed" in connectome_type:
                 extension_filename = f"{network_measure_}_formulation={formulation}_target_density={target_density}_r_s_id={idx_r}.npy"
-            else:
+            elif connectome_type == "smoothed":
                 extension_filename = f"{network_measure_}_formulation={formulation}_fwhm={fwhm}_target_density={target_density}_r_s_id={idx_r}.npy"
+            else:
+                extension_filename = f"{network_measure_}_formulation={formulation}_target_density={target_density}_r_s_id={idx_r}.npy"
 
             full_path = directory + "/" + extension_filename
             
@@ -597,7 +599,7 @@ def plotConnectivity(connectivity_matrix, idxes_, title_="none", binary=False, f
         cbar = fig.colorbar(im, cax=cax)
         cbar.ax.tick_params(labelsize=8)
 
-def plot_human_vertex_scatter_splots(scatter_measures, vertexModelSC, vertexModelSC_thresholded_idxes, empirical_vertex_connectivity_idxes, node_properties_model_dict, empirical_node_properties_dict, distances, measure_colors, scatter_node_size=20, scatter_edge_size=5, alpha_node=0.6, alpha_edge=0.02, resampling_weights=None):
+def plot_scatter_results(scatter_measures, vertexModelSC, vertexModelSC_thresholded_idxes, empirical_vertex_connectivity_idxes, node_properties_model_dict, empirical_node_properties_dict, distances, measure_colors, scatter_node_size=20, scatter_edge_size=5, alpha_node=0.6, alpha_edge=0.02, resampling_weights=None):
 
     if alpha_edge == 0.02:
         linewidth_edge = 0.1
@@ -647,10 +649,10 @@ def plot_human_vertex_scatter_splots(scatter_measures, vertexModelSC, vertexMode
                 linewidth=linewidth_node
             )
 
-        slope, intercept, _, _, _ = linregress(x, y)
-        x_fit = np.linspace(np.min(x), np.max(x), 100)
-        y_fit = slope * x_fit + intercept
-        plt.plot(x_fit, y_fit, color='black', linestyle="--", linewidth=1, alpha=0.7, zorder=10, label='_nolegend_')
+        # slope, intercept, _, _, _ = linregress(x, y)
+        # x_fit = np.linspace(np.min(x), np.max(x), 100)
+        # y_fit = slope * x_fit + intercept
+        # plt.plot(x_fit, y_fit, color='black', linestyle="--", linewidth=1, alpha=0.7, zorder=10, label='_nolegend_')
 
         # Legend showing only rho and p
         legend_label = r"$\rho$ = {:.2f}, $p$ = {:.1e}".format(corr_, pval_)
