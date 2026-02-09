@@ -446,6 +446,8 @@ def generate_and_save_model_performance(species, dense_or_sparse, path_data, r_s
     n_edges_parcel_empirical = len(idxes_edges_empirical)
     density = n_edges_parcel_empirical/len(idxes_parcel[0])
 
+    print(target_density, "target density")
+    print(density, "density empirical")
     print(n_edges_parcel_empirical, "n_edges_parcel_empirical")
 
     distances, centroids = utilities.get_non_human_species_centroids(species, path_data)
@@ -460,7 +462,8 @@ def generate_and_save_model_performance(species, dense_or_sparse, path_data, r_s
         print(k, "k")
         modelSC = connectome_models.generate_non_human_species_GEM(r_s, k, model_parameters_and_variables, resampling_weights=resampling_weights)
         modelSC_idxes = modelSC[idxes_parcel]
-        idxes_edges_model = np.nonzero(modelSC_idxes)[0]   
+        # idxes_edges_model = np.nonzero(modelSC_idxes)[0]
+        # print(len(idxes_edges_model), " n edges model")
         
         if len(network_measures) != 0:
             compute_and_update_results(results_dict, k_idx, network_measures, modelSC, modelSC_idxes, empirical_node_properties_dict,  empirical_parcel_connectivity_idxes, idxes_edges_empirical, distances)
@@ -507,12 +510,12 @@ if __name__ == "__main__":
 
     if species == None:
         # species = "Mouse"
-        species = "Marmoset"
-        # species = "Macaque"
+        # species = "Marmoset"
+        species = "Macaque"
 
     if dense_or_sparse == None:
-        dense_or_sparse = "dense"
-        # dense_or_sparse = "sparse"
+        # dense_or_sparse = "dense"
+        dense_or_sparse = "sparse"
         
     generate_and_save_model_performance(species, dense_or_sparse, path_data, r_s_id, formulation)
 

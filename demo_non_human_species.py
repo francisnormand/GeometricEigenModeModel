@@ -200,7 +200,7 @@ def get_animal_paramameters(animal, dense_or_sparse="dense"):
         mean_or_sum = "mean"
         r_s_values_list = np.linspace(0, 5, 50)
         target_density = 1
-        fixed_threshold_vertex = 0.03 
+        fixed_threshold_vertex = 0.03
 
     elif animal == "Macaque":
         surface_name = "MacaqueYerkes19_10k_midthickness-lh"
@@ -298,7 +298,10 @@ def get_non_human_species_mesh_and_empirical_connectome(model_parameters_and_var
     empirical_connectome = (empirical_connectome + empirical_connectome.T)/2
     np.fill_diagonal(empirical_connectome, 0)
 
-    if target_density != 1:
+    if target_density == "thr" and species == "Mouse":
+        pass
+    
+    elif target_density != 1:
         n_edges_empirical = int(target_density * len(idxes_parcel[0]))
         empirical_connectome = utilities.apply_threshold_to_match_densities(empirical_connectome, n_edges_empirical, idxes_parcel)
 
@@ -569,10 +572,11 @@ def mainFunction():
     """
     
     # species = "Mouse" # Has both dense and sparse
-    species = "Marmoset" # Dense only
-    # species = "Macaque" # Has both dense and sparse
+    # species = "Marmoset" # Dense only
+    species = "Macaque" # Has both dense and sparse
 
-    dense_or_sparse = "dense"
+    # dense_or_sparse = "dense"
+    dense_or_sparse = "sparse"
 
     # 1. Generate the geometric eigenmodes
     # generate_geometric_modes(species)
