@@ -513,13 +513,17 @@ def grab_human_EDR_heatmaps(repet_id, optimization_metric_list, directory, netwo
     return heatmaps_dict, average_heatmap
 
 
-def grab_human_distance_atlas_or_MI_heatmaps(optimization_metric_list, directory, formulation, target_density, connectome_type, fwhm, repetition_id, plot_heatmaps=False):
+def grab_distance_atlas_or_MI_heatmaps(optimization_metric_list, directory, formulation, target_density, connectome_type, fwhm, repetition_id):
     
     heatmaps_dict = {}
     missings = []
+    
     for idx_, network_measure_ in enumerate(optimization_metric_list):
+        if connectome_type == "smoothed":
+            current_hypothesis = f"formulation={formulation}_fwhm={fwhm}_target_density={target_density}_repetition_id_{repetition_id}"
+        else:
+            current_hypothesis = f"formulation={formulation}_target_density={target_density}_repetition_id_{repetition_id}"
 
-        current_hypothesis = f"formulation={formulation}_fwhm={fwhm}_target_density={target_density}_repetition_id_{repetition_id}"
         full_path = directory + f"/{network_measure_}_{current_hypothesis}.npy"
         
         if os.path.exists(full_path):
@@ -539,6 +543,53 @@ def grab_human_distance_atlas_or_MI_heatmaps(optimization_metric_list, directory
 
     average_heatmap = np.mean(np.array(list_of_heatmaps), axis=0)
 
+    return average_heatmap, heatmaps_dict
+
+
+def grab_non_human_species_EDR_results(formulation, directory, network_measures, optimization_metric_list, target_density, number_of_batches, repetition_id):
+
+    top_number_of_params = 1
+
+    directory = common_parameters["directory"]
+
+    heatmaps_dict = {network_measure:0 for network_measure in network_measures}
+    missings = 0
+    for idx_, network_measure_ in enumerate(network_measures):
+
+        results_list = []
+        std_list = []
+
+        missings = []
+        for eta_range_id in range(number_of_batches):
+            extension_filename = f"{network_measure}_formulation={formulation}_target_density={target_density}_eta_range_id_{eta_range_id}_repetition_id_{repetition_id}.npy"
+    
+            if os.path.exists(directory + "/" + extension_filename):
+                array_loaded = np.load(directory + "/" + extension_filename)
+                results_list.extend(array_loaded)
+            
+            else:
+                print(directory + "/" + extension_filename, "is missing")
+                print("which will mess the indexes of EDR-vertex readings")
+                missings.append(batchId)
+
+        if len(missings) != 0:
+            print("missing some EDR-vertex, exiting")
+            print(missings)
+            sys.exit()
+        
+        heatmaps_dict[network_measure_] = results_list
+
+    list_of_heatmaps = []
+    for optimization_metric in optimization_metric_list:
+        list_of_heatmaps.append(heatmaps_dict[optimization_metric])
+
+    average_heatmap = np.nanmean(np.array(list_of_heatmaps), axis=0)
+    # flattened = average_heatmap.flatten()
+
+    # arg_max_flat = np.argmax(flattened)
+
+    # top_N_1d_indices = np.argsort(flattened)[-top_number_of_params:]
+    
     return average_heatmap, heatmaps_dict
 
 

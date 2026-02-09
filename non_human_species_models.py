@@ -171,8 +171,11 @@ def EDR_generate_and_save(species, dense_or_sparse, path_data, task_id):
     ##################################### 
 
     results_dict = {network_metric:np.empty(len(eta_prob_connection_range)) for network_metric in network_measures}
+
+    # print(len(eta_prob_connection_range), "len eta_prob_connection_range")
+
     for idx_eta_prob, eta_prob_connection in enumerate(eta_prob_connection_range):
-        
+        # print(idx_eta_prob, "idx_eta_prob")    
         modelSC = connectome_models.generate_EDR_non_human_species_model(eta_prob_connection, model_parameters_and_variables)
         modelSC_idxes = modelSC[idxes_parcel]
         idxes_edges_model = np.nonzero(modelSC_idxes)[0]        
@@ -187,7 +190,7 @@ def EDR_generate_and_save(species, dense_or_sparse, path_data, task_id):
 
 def distance_atlas_generate_and_save(species, dense_or_sparse, path_data, repetition_id):
 
-    dense_or_sparse = "sparse"
+    dense_or_sparse = "sparse" # Enforcing sparse empirical connectome
     
     formulation = "distance-atlas"
 
@@ -305,6 +308,9 @@ def matching_index_generate_and_save(species, dense_or_sparse, path_data, repeti
     n_edges_parcel_empirical = len(idxes_edges_empirical)
     density = n_edges_parcel_empirical/len(idxes_parcel[0])
 
+    print(density, "density empirical")
+    print(n_edges_parcel_empirical, "n_edges_parcel_empirical")
+
     distances, centroids = utilities.get_non_human_species_centroids(species, path_data)
     distances /= np.max(distances)
 
@@ -341,6 +347,7 @@ def matching_index_generate_and_save(species, dense_or_sparse, path_data, repeti
 
             modelSC = connectome_models.generate_matching_index_model(eta_i, gamma_i, n_nodes, n_edges_parcel_empirical, distances, total_number_of_possible_edges, idxes_parcel, cost_rule)
             modelSC_idxes = modelSC[idxes_parcel]
+            # print(np.count_nonzero(modelSC_idxes), "n edges model")
 
             if len(network_measures) != 0:
                 compute_and_update_results(results_dict, idx_eta, network_measures, modelSC, modelSC_idxes, empirical_node_properties_dict,  empirical_parcel_connectivity_idxes, idxes_edges_empirical, distances, idx_gamma=idx_gamma)
@@ -503,10 +510,10 @@ if __name__ == "__main__":
     if formulation is None:
         # Manual input here instead of call from command line 
         
-        formulation = "GEM"
+        # formulation = "GEM"
         # formulation = "EDR-vertex"
         # formulation = "distance-atlas"
-        # formulation = "MI"
+        formulation = "MI"
 
     if species == None:
         # species = "Mouse"
