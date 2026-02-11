@@ -837,9 +837,7 @@ def visualize_human_parcellated_model_modularity_comparison(number_of_parcels):
 
     k_range = np.array([k_ for k_ in range(2, 200)])
 
-    representation_modularity = "binary"
-
-    colors = ["darkgreen", "palegreen", "mediumseagreen", "rebeccapurple", "indianred"]
+    colors = ["darkgreen", "steelblue", "slateblue", "rebeccapurple", "indianred"]
 
     optimization_metric_list = ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]
     optimization_metric_list_binary = ["degreeBinary", "true_positive_rate"]
@@ -890,8 +888,6 @@ def visualize_human_parcellated_model_spectral_distance_comparison(number_of_par
     r_s_values_list, cortex_mask, connectome_type, fwhm, target_density, fixed_vertex_threshold_density, resampling_weights = human_parcellated_parameters
 
     k_range = np.array([k_ for k_ in range(2, 200)])
-
-    representation_modularity = "binary"
 
     network_measures = ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]
     optimization_metric_list = ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]

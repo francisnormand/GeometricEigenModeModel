@@ -69,13 +69,22 @@ def wait_for_job(jobid):
         time.sleep(300)  # check every 5 minutes
 
 def generate_slurm_script_chunks(start_idx, end_idx, script_path, formulation, species, dense_or_sparse):
+
+    if species == "Marmoset":
+        time_limit = 4
+        memory_request = f"""#SBATCH --cpus-per-task=2
+#SBATCH --mem-per-cpu=20G"""
+    else:
+        time_limit = 1
+        memory_request = f""" """
     
     headers = [
         "#!/bin/bash",
         "#SBATCH --account=kg98",
         f"#SBATCH --output={cwd}/slurm_output/run-array_non-human_species_%A_%a.out",
         f"#SBATCH --array={start_idx}-{end_idx}",
-        "#SBATCH --time=02:00:00"
+        f"#SBATCH --time=0{time_limit}:00:00",
+        f"{memory_request}"
     ]
 
     body = f"""
@@ -562,11 +571,11 @@ def generate_non_human_species_comparison_results(species, which_results, dense_
     
     # Input (generate optimized results for one model at a time)
     ############################################################
-    formulation_generate = formulation_GEM
+    # formulation_generate = formulation_GEM
     # formulation_generate = formulation_EDR_vertex
     # formulation_generate = formulation_distance_atlas
     # formulation_generate = formulation_MI
-    # formulation_generate = formulation_Random
+    formulation_generate = formulation_Random
     ############################################################
     
     if formulation_generate == formulation_MI and dense_or_sparse == "dense":
@@ -1051,9 +1060,7 @@ def visualize_non_human_species_model_modularity_comparison(species, dense_or_sp
 
     k_range = np.array([k_ for k_ in range(2, 200)])
 
-    representation_modularity = "binary"
-
-    colors = ["darkgreen", "palegreen", "mediumseagreen", "rebeccapurple", "indianred"]
+    colors = ["darkgreen", "steelblue", "slateblue", "rebeccapurple", "indianred"]
 
     optimization_metric_list = optimization_metric_species(species, dense_or_sparse)
     optimization_metric_list_binary = ["degreeBinary", "true_positive_rate"]
@@ -1089,7 +1096,56 @@ def visualize_non_human_species_model_modularity_comparison(species, dense_or_sp
 
 
 def visualize_non_human_species_model_spectral_distance_comparison(species, dense_or_sparse):
-    pass
+
+    which_results = "spectral"
+    # cmap = utilities.get_colormap()
+
+    alpha = 0.8
+
+    formulation_GEM = "GEM"
+    formulation_EDR_vertex = "EDR-vertex"
+    formulation_distance_atlas = "distance-atlas"
+    formulation_MI = "MI"
+    formulation_Random = "Random"
+
+    list_of_models = [formulation_GEM, formulation_MI, formulation_distance_atlas, formulation_EDR_vertex, formulation_Random]
+
+    species_parameters = get_animal_paramameters(species, dense_or_sparse)
+    _, _, _, _, target_density, _, resampling_weights = species_parameters
+
+    connectome_type = "atlas_species"
+    fwhm = None
+    k_range = np.array([k_ for k_ in range(2, 200)])
+
+    network_measures = ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]
+    optimization_metric_list = ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]
+    optimization_metric_list_binary = ["degreeBinary", "true_positive_rate"]
+
+    opt_metric_str = "_".join(optimization_metric_list)
+    opt_metric_str_binary = "_".join(optimization_metric_list_binary)
+    optimization_str_dict = {formulation_GEM:opt_metric_str,  formulation_EDR_vertex:opt_metric_str, formulation_distance_atlas:opt_metric_str_binary, formulation_MI:opt_metric_str_binary, formulation_Random:"None"}
+
+    colors_list = ["darkgreen", "steelblue", "slateblue", "rebeccapurple", "indianred"]
+
+    def load_results(models):
+        all_data = []
+        for model in models:
+            print(model, "model")
+            opt_metric_model = optimization_str_dict[model]
+            
+            results_base_dir = f"/{cwd}/data/results/non_human_species/{species}/resampled_weights_{resampling_weights}_formulation_{model}"       
+            results_base_dir += f"/optimized_for_{opt_metric_model}_target_density_{target_density}"
+            
+            results_model_ = np.load(results_base_dir + f"/{which_results}_optimized_results.npy")
+            
+            all_data.append({"model": model, "value": results_model_})
+
+        return pd.DataFrame(all_data)
+
+    df_net = load_results(list_of_models)
+
+    utilities.boxPlotSpectral("Spectral dist", df_net, colors_list)
+    plt.show()
 
 
 def compare_non_human_species_models(species, which_results, dense_or_sparse):
@@ -1128,12 +1184,12 @@ def mainFunction():
     These functions have to be run sequentially.
     """
     
-    # species = "Mouse" # Has both dense and sparse
+    species = "Mouse" # Has both dense and sparse
     # species = "Marmoset" # Dense only
-    species = "Macaque" # Has both dense and sparse
+    # species = "Macaque" # Has both dense and sparse
 
-    # dense_or_sparse = "dense"
-    dense_or_sparse = "sparse"
+    dense_or_sparse = "dense"
+    # dense_or_sparse = "sparse"
 
     # 1. Generate the geometric eigenmodes
     # generate_geometric_modes(species)
@@ -1147,8 +1203,8 @@ def mainFunction():
 
 
     # results = "main"
-    results = "modularity"
-    # results = "spectral"
+    # results = "modularity"
+    results = "spectral"
     
     #4. Generate benchmark models
     # generate_non_human_species_comparison_results(species, which_results=results, dense_or_sparse=dense_or_sparse)
