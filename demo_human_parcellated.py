@@ -964,14 +964,14 @@ def mainFunction():
     # visualize_GEM_human_parcellated_results(number_of_parcels)
 
     # results = "main"
-    # results = "modularity"
-    results = "spectral"
+    results = "modularity"
+    # results = "spectral"
     
     #4. Generate benchmark models
-    # generate_human_parcellated_comparison_results(number_of_parcels, which_results=results)
+    generate_human_parcellated_comparison_results(number_of_parcels, which_results=results)
 
     #5. Compare GEM performance with other models
-    compare_human_parcellated_models(number_of_parcels, which_results=results)
+    # compare_human_parcellated_models(number_of_parcels, which_results=results)
 
 
 if __name__ == "__main__":

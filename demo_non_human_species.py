@@ -550,7 +550,7 @@ def generate_non_human_species_comparison_results(species, which_results, dense_
     Stochastic models (EDR-vertex, Distance-atlas and Matching-index (MI)) are generated 100 times each.
     """
 
-    list_of_number_of_communities = [3, 4, 5 , 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    list_of_number_of_communities = [3, 4, 5 , 6, 7, 8, 9, 10]
 
     from utilities import get_performance_results
 
@@ -562,8 +562,8 @@ def generate_non_human_species_comparison_results(species, which_results, dense_
     
     # Input (generate optimized results for one model at a time)
     ############################################################
-    # formulation_generate = formulation_GEM
-    formulation_generate = formulation_EDR_vertex
+    formulation_generate = formulation_GEM
+    # formulation_generate = formulation_EDR_vertex
     # formulation_generate = formulation_distance_atlas
     # formulation_generate = formulation_MI
     # formulation_generate = formulation_Random
@@ -577,7 +577,12 @@ def generate_non_human_species_comparison_results(species, which_results, dense_
         print("connectome should be sparse for the Distance-atlas model, setting density to sparse")
         dense_or_sparse = "sparse"
     
-    
+    ## Enforcing sparse network for modularity and spectral distance (computed on binary networks)
+    if which_results == "modularity" or which_results == "spectral":
+        print("input density was dense, setting to sparse for modularity of spectral distance measures")
+        dense_or_sparse = "sparse"
+
+
     lump = False
 
     species_parameters = get_animal_paramameters(species, dense_or_sparse)
@@ -955,7 +960,6 @@ def visualize_non_human_species_model_main_results_comparison(species, dense_or_
     network_measures = ["degreeBinary", "spearman_union_weights", "ranked_weights_strength"]
     # network_measures = ["node connection distance", "true_positive_rate", "clustering"]
     
-    # optimization_metric_list = ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]
     optimization_metric_list = optimization_metric_species(species, dense_or_sparse)
     optimization_metric_list_binary = ["degreeBinary", "true_positive_rate"]
 
@@ -1023,7 +1027,65 @@ def visualize_non_human_species_model_main_results_comparison(species, dense_or_
 
 
 def visualize_non_human_species_model_modularity_comparison(species, dense_or_sparse):
-    pass
+
+    which_results = "modularity"
+    cmap = utilities.get_colormap()
+
+    color_optimized = cmap(0.5)
+    color_not_optimized = color_optimized
+    alpha = 0.8
+
+    formulation_GEM = "GEM"
+    formulation_EDR_vertex = "EDR-vertex"
+    formulation_distance_atlas = "distance-atlas"
+    formulation_MI = "MI"
+    formulation_Random = "Random"
+
+    list_of_models = [formulation_GEM, formulation_MI, formulation_distance_atlas, formulation_EDR_vertex, formulation_Random]
+
+    species_parameters = get_animal_paramameters(species, dense_or_sparse)
+    _, _, _, _, target_density, _, resampling_weights = species_parameters
+
+    connectome_type = "atlas_species"
+    fwhm = None
+
+    k_range = np.array([k_ for k_ in range(2, 200)])
+
+    representation_modularity = "binary"
+
+    colors = ["darkgreen", "palegreen", "mediumseagreen", "rebeccapurple", "indianred"]
+
+    optimization_metric_list = optimization_metric_species(species, dense_or_sparse)
+    optimization_metric_list_binary = ["degreeBinary", "true_positive_rate"]
+
+    opt_metric_str = "_".join(optimization_metric_list)
+    opt_metric_str_binary = "_".join(optimization_metric_list_binary)
+
+    optimization_str_dict = {formulation_GEM:opt_metric_str,  formulation_EDR_vertex:opt_metric_str, formulation_distance_atlas:opt_metric_str_binary, formulation_MI:opt_metric_str_binary, formulation_Random:"None"}
+
+    legend_handles = []
+
+    results_dict = {}
+
+    list_of_number_of_communities = [3, 4, 5 , 6, 7, 8, 9, 10]
+
+    for i_m, model in enumerate(list_of_models):
+        opt_metric_model = optimization_str_dict[model]
+
+        results_base_dir = f"/{cwd}/data/results/non_human_species/{species}/resampled_weights_{resampling_weights}_formulation_{model}"       
+        results_base_dir += f"/optimized_for_{opt_metric_model}_target_density_{target_density}"
+
+        results_model_ = np.load(results_base_dir + f"/{which_results}_optimized_results.npy", allow_pickle=True).item()
+
+        results_dict[model] = results_model_
+        y_mean = np.array([np.mean(results_model_[key]) for key in list_of_number_of_communities])
+
+        auc = np.trapz(y_mean, np.array(list_of_number_of_communities))
+        print(auc, f"AUC for {model}")
+    
+    utilities.linePlotModularity(list_of_number_of_communities, list_of_models, results_dict, colors, "NVI")
+
+    plt.show()
 
 
 def visualize_non_human_species_model_spectral_distance_comparison(species, dense_or_sparse):
@@ -1034,10 +1096,10 @@ def compare_non_human_species_models(species, which_results, dense_or_sparse):
     if which_results == "main":
         visualize_non_human_species_model_main_results_comparison(species, dense_or_sparse)
     elif which_results == "modularity":
-        dense_or_sparse = "sparse"
+        dense_or_sparse = "sparse" ## modularity is computed on binar networks, so taking the sparse version
         visualize_non_human_species_model_modularity_comparison(species, dense_or_sparse)
     elif which_results == "spectral":
-        dense_or_sparse = "sparse"
+        dense_or_sparse = "sparse" ## spectral distance is computed on binar networks, so taking the sparse version
         visualize_non_human_species_model_spectral_distance_comparison(species, dense_or_sparse)
 
 
@@ -1084,8 +1146,8 @@ def mainFunction():
     # visualize_GEM_non_human_species_results(species, dense_or_sparse)
 
 
-    results = "main"
-    # results = "modularity"
+    # results = "main"
+    results = "modularity"
     # results = "spectral"
     
     #4. Generate benchmark models
