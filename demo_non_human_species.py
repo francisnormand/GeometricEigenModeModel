@@ -1188,7 +1188,7 @@ def mainFunction():
     # species = "Marmoset" # Dense only
     # species = "Macaque" # Has both dense and sparse
 
-    dense_or_sparse = "dense"
+    # dense_or_sparse = "dense"
     # dense_or_sparse = "sparse"
 
     # 1. Generate the geometric eigenmodes
@@ -1204,13 +1204,13 @@ def mainFunction():
 
     # results = "main"
     # results = "modularity"
-    results = "spectral"
+    # results = "spectral"
     
     #4. Generate benchmark models
     # generate_non_human_species_comparison_results(species, which_results=results, dense_or_sparse=dense_or_sparse)
 
     #5. Compare GEM performance with other models
-    compare_non_human_species_models(species, which_results=results, dense_or_sparse=dense_or_sparse)
+    # compare_non_human_species_models(species, which_results=results, dense_or_sparse=dense_or_sparse)
 
 
 if __name__ == "__main__":
