@@ -550,8 +550,6 @@ def grab_non_human_species_EDR_results(formulation, directory, network_measures,
 
     top_number_of_params = 1
 
-    directory = common_parameters["directory"]
-
     heatmaps_dict = {network_measure:0 for network_measure in network_measures}
     missings = 0
     for idx_, network_measure_ in enumerate(network_measures):
@@ -561,7 +559,7 @@ def grab_non_human_species_EDR_results(formulation, directory, network_measures,
 
         missings = []
         for eta_range_id in range(number_of_batches):
-            extension_filename = f"{network_measure}_formulation={formulation}_target_density={target_density}_eta_range_id_{eta_range_id}_repetition_id_{repetition_id}.npy"
+            extension_filename = f"{network_measure_}_formulation={formulation}_target_density={target_density}_eta_range_id_{eta_range_id}_repetition_id_{repetition_id}.npy"
     
             if os.path.exists(directory + "/" + extension_filename):
                 array_loaded = np.load(directory + "/" + extension_filename)
@@ -570,7 +568,7 @@ def grab_non_human_species_EDR_results(formulation, directory, network_measures,
             else:
                 print(directory + "/" + extension_filename, "is missing")
                 print("which will mess the indexes of EDR-vertex readings")
-                missings.append(batchId)
+                missings.append(eta_range_id)
 
         if len(missings) != 0:
             print("missing some EDR-vertex, exiting")

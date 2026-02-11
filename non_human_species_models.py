@@ -75,6 +75,8 @@ def EDR_generate_and_save(species, dense_or_sparse, path_data, task_id):
     -----
     - eta_id is derived as task_id // 10 representing the $\eta_p$ parameter in the paper (0–99)
     - repetition_id is derived as task_id % 10  (0–9)
+
+    i.e., task_id = eta_range_id * 10 + repettition_id
     """
     eta_range_id = task_id // 10 # 0 to 99 (etas)
     repetition_id = task_id % 10 # 0 to 9 (repetitions)
@@ -82,7 +84,7 @@ def EDR_generate_and_save(species, dense_or_sparse, path_data, task_id):
     formulation = "EDR-vertex"
     # number_of_repetitions = 10 # All repetitions are saved separately to make it more efficient.
 
-    from demo_non_human_species import get_animal_paramameters, get_non_human_species_mesh_and_empirical_connectome, get_non_human_species_EDR_parameters
+    from demo_non_human_species import get_animal_paramameters, get_non_human_species_empirical_connectome, get_non_human_species_EDR_parameters
 
     species_parameters = get_animal_paramameters(species, dense_or_sparse)
 
@@ -102,21 +104,25 @@ def EDR_generate_and_save(species, dense_or_sparse, path_data, task_id):
     model_parameters_and_variables['vertices_in_connectome'] = vertices_in_connectome
     model_parameters_and_variables['idxes_cortex'] = idxes_cortex
     
-    mesh, empirical_parcel_connectivity, n_edges_empirical_parcel = get_non_human_species_mesh_and_empirical_connectome(model_parameters_and_variables)
+    empirical_parcel_connectivity, n_edges_empirical_parcel = get_non_human_species_empirical_connectome(model_parameters_and_variables)
     
+    mesh, _ = utilities.get_non_human_species_mesh(path_data, species)
+
     model_parameters_and_variables['n_edges_empirical_parcel'] = n_edges_empirical_parcel
 
     vertices = mesh.v
 
-    if idxes_cortex is not None:
-        vertices_species = vertices[idxes_cortex, :]
+    model_parameters_and_variables['vertices'] = vertices
 
-    elif vertices_in_connectome is not None:
-        vertices_species = vertices[vertices_in_connectome, :]
-    
+    if species != "Mouse":
+        vertices_species = vertices[idxes_cortex, :]
     else:
         vertices_species = vertices
 
+    
+    if vertices_in_connectome is not None:
+        vertices_species = vertices_species[vertices_in_connectome, :]
+    
     distances_vertices = pdist(vertices_species)
     model_parameters_and_variables['distances_vertices'] = distances_vertices
 
@@ -204,7 +210,7 @@ def distance_atlas_generate_and_save(species, dense_or_sparse, path_data, repeti
         cost_rule = powerlawRule
         print("powerlaw")
 
-    from demo_non_human_species import get_animal_paramameters, get_non_human_species_mesh_and_empirical_connectome, get_non_human_species_distance_atlas_parameters
+    from demo_non_human_species import get_animal_paramameters, get_non_human_species_empirical_connectome, get_non_human_species_distance_atlas_parameters
 
     species_parameters = get_animal_paramameters(species, dense_or_sparse)
 
@@ -215,7 +221,7 @@ def distance_atlas_generate_and_save(species, dense_or_sparse, path_data, repeti
     model_parameters_and_variables["species"] = species
     model_parameters_and_variables["density_allen"] = density_allen
 
-    _, empirical_parcel_connectivity, n_edges_empirical_parcel = get_non_human_species_mesh_and_empirical_connectome(model_parameters_and_variables)
+    empirical_parcel_connectivity, n_edges_empirical_parcel = get_non_human_species_empirical_connectome(model_parameters_and_variables)
 
     n_nodes = empirical_parcel_connectivity.shape[0]
     idxes_parcel = np.triu_indices(n_nodes, k=1)
@@ -285,7 +291,7 @@ def matching_index_generate_and_save(species, dense_or_sparse, path_data, repeti
         cost_rule = powerlawRule
         print("powerlaw")
 
-    from demo_non_human_species import get_animal_paramameters, get_non_human_species_mesh_and_empirical_connectome, get_non_human_species_matching_index_parameters
+    from demo_non_human_species import get_animal_paramameters, get_non_human_species_empirical_connectome, get_non_human_species_matching_index_parameters
 
     species_parameters = get_animal_paramameters(species, dense_or_sparse)
 
@@ -296,7 +302,7 @@ def matching_index_generate_and_save(species, dense_or_sparse, path_data, repeti
     model_parameters_and_variables["species"] = species
     model_parameters_and_variables["density_allen"] = density_allen
 
-    _, empirical_parcel_connectivity, n_edges_empirical_parcel = get_non_human_species_mesh_and_empirical_connectome(model_parameters_and_variables)
+    empirical_parcel_connectivity, n_edges_empirical_parcel = get_non_human_species_empirical_connectome(model_parameters_and_variables)
 
     n_nodes = empirical_parcel_connectivity.shape[0]
     idxes_parcel = np.triu_indices(n_nodes, k=1)
@@ -369,7 +375,7 @@ def generate_and_save_model_performance(species, dense_or_sparse, path_data, r_s
     elif formulation == "MI":
         return matching_index_generate_and_save(species, dense_or_sparse, path_data, repetition_id=r_s_id)
     
-    from demo_non_human_species import get_animal_paramameters, get_non_human_species_mesh_and_empirical_connectome, load_non_human_species_modes
+    from demo_non_human_species import get_animal_paramameters, get_non_human_species_empirical_connectome, load_non_human_species_modes
 
     lump = False ## Fixed. Will override previous files if changed.
 
@@ -401,7 +407,7 @@ def generate_and_save_model_performance(species, dense_or_sparse, path_data, r_s
     model_parameters_and_variables['vertices_in_connectome'] = loaded_parameters_and_variables["vertices_in_connectome"]
     model_parameters_and_variables['idxes_cortex'] = idxes_cortex
     
-    _, empirical_parcel_connectivity, n_edges_empirical_parcel = get_non_human_species_mesh_and_empirical_connectome(model_parameters_and_variables)
+    empirical_parcel_connectivity, n_edges_empirical_parcel = get_non_human_species_empirical_connectome(model_parameters_and_variables)
     
     model_parameters_and_variables['n_edges_empirical_parcel'] = n_edges_empirical_parcel
 
@@ -511,9 +517,9 @@ if __name__ == "__main__":
         # Manual input here instead of call from command line 
         
         # formulation = "GEM"
-        # formulation = "EDR-vertex"
+        formulation = "EDR-vertex"
         # formulation = "distance-atlas"
-        formulation = "MI"
+        # formulation = "MI"
 
     if species == None:
         # species = "Mouse"

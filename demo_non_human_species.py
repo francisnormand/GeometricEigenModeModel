@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import pandas as pd
 import connectome_models
+from utilities import powerlawRule, exponentialRule
 
 def generate_slurm_script(num_tasks, script_path, formulation, species, dense_or_sparse):
     if species == "Marmoset":
@@ -271,7 +272,7 @@ def get_non_human_species_matching_index_parameters(species):
 
     return eta_list, gamma_list
 
-def get_non_human_species_mesh_and_empirical_connectome(model_parameters_and_variables, representation="weighted", resampling_weights=None):
+def get_non_human_species_empirical_connectome(model_parameters_and_variables, representation="weighted", resampling_weights=None):
 
     target_density = model_parameters_and_variables['target_density']
     species = model_parameters_and_variables['species']
@@ -315,9 +316,9 @@ def get_non_human_species_mesh_and_empirical_connectome(model_parameters_and_var
     if resampling_weights == "gaussian":
         empirical_connectome = resample_matrix(empirical_connectome)
 
-    mesh, mesh_path = utilities.get_non_human_species_mesh(path_data, species)
+    # mesh, mesh_path = utilities.get_non_human_species_mesh(path_data, species)
 
-    return mesh, empirical_connectome, n_edges_empirical_parcel
+    return empirical_connectome, n_edges_empirical_parcel
 
 def optimize_and_save_non_human_species_results(species, dense_or_sparse):
     """
@@ -482,7 +483,7 @@ def visualize_GEM_non_human_species_results(species, dense_or_sparse):
     print(density_allen, "density allen")
     print(target_density, "target_density")
     
-    _, empirical_parcel_connectivity, n_edges_empirical_parcel = get_non_human_species_mesh_and_empirical_connectome(model_parameters_and_variables)
+    empirical_parcel_connectivity, n_edges_empirical_parcel = get_non_human_species_empirical_connectome(model_parameters_and_variables)
     
     model_parameters_and_variables['n_edges_empirical_parcel'] = n_edges_empirical_parcel
 
@@ -561,13 +562,22 @@ def generate_non_human_species_comparison_results(species, which_results, dense_
     
     # Input (generate optimized results for one model at a time)
     ############################################################
-    formulation_generate = formulation_GEM
-    # formulation_generate = formulation_EDR_vertex
+    # formulation_generate = formulation_GEM
+    formulation_generate = formulation_EDR_vertex
     # formulation_generate = formulation_distance_atlas
     # formulation_generate = formulation_MI
     # formulation_generate = formulation_Random
     ############################################################
-
+    
+    if formulation_generate == formulation_MI and dense_or_sparse == "dense":
+        print("connectome should be sparse for the MI model, setting density to sparse")
+        dense_or_sparse = "sparse"
+    
+    if formulation_generate == formulation_distance_atlas and dense_or_sparse == "dense":
+        print("connectome should be sparse for the Distance-atlas model, setting density to sparse")
+        dense_or_sparse = "sparse"
+    
+    
     lump = False
 
     species_parameters = get_animal_paramameters(species, dense_or_sparse)
@@ -579,6 +589,8 @@ def generate_non_human_species_comparison_results(species, which_results, dense_
     loaded_parameters_and_variables = np.load(path_data + f"/{species}/{species}_parc_scheme={mean_or_sum}_saved_parameters_and_variables.npy", allow_pickle=True).item()
     mesh, _ = utilities.get_non_human_species_mesh(path_data, species)
 
+    print("one")
+
     k_range = np.array([k_ for k_ in range(2, 200)])
 
     network_measures = ["degree", "true_positive_rate", "degreeBinary", "spearman_union_weights", "ranked_weights_strength", "node connection distance", "clustering"]
@@ -586,7 +598,7 @@ def generate_non_human_species_comparison_results(species, which_results, dense_
     
 
     ### Standard optimization metric used in the paper
-    optimization_metric_list = ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]
+    optimization_metric_list = optimization_metric_species(species, dense_or_sparse)
     optimization_metric_list_binary = ["degreeBinary", "true_positive_rate"]
     
     opt_metric_str = "_".join(optimization_metric_list)
@@ -616,7 +628,7 @@ def generate_non_human_species_comparison_results(species, which_results, dense_
     model_parameters_and_variables['idxes_cortex'] = idxes_cortex
     model_parameters_and_variables['cortex_mask'] = cortex_mask
     
-    _, empirical_parcel_connectivity, n_edges_empirical_parcel = get_non_human_species_mesh_and_empirical_connectome(model_parameters_and_variables)
+    empirical_parcel_connectivity, n_edges_empirical_parcel = get_non_human_species_empirical_connectome(model_parameters_and_variables)
     
     model_parameters_and_variables['n_edges_empirical_parcel'] = n_edges_empirical_parcel
 
@@ -632,14 +644,13 @@ def generate_non_human_species_comparison_results(species, which_results, dense_
 
     vertices_in_connectome = loaded_parameters_and_variables["vertices_in_connectome"]
 
-    if idxes_cortex is not None:
+    if species != "Mouse":
         vertices_species = vertices[idxes_cortex, :]
-
-    elif vertices_in_connectome is not None:
-        vertices_species = vertices[vertices_in_connectome, :]
-    
     else:
         vertices_species = vertices
+
+    if vertices_in_connectome is not None:
+        vertices_species = vertices_species[vertices_in_connectome, :]
 
     distances_vertices = pdist(vertices_species)
     model_parameters_and_variables['distances_vertices'] = distances_vertices
@@ -675,6 +686,8 @@ def generate_non_human_species_comparison_results(species, which_results, dense_
     n_edges_parcel_empirical = len(np.nonzero(empirical_parcel_connectivity_idxes)[0])
 
     print(n_edges_parcel_empirical, "n_edges_parcel_empirical")
+    print(target_density, "target_density")
+
 
     if which_results == "modularity":
         G_empirical = nx.from_numpy_array(empirical_connectome_binary)
@@ -733,16 +746,16 @@ def generate_non_human_species_comparison_results(species, which_results, dense_
         moving_sum_average_heatmap = 0
         
         for repetition_id in range(n_EDR_vertex_repetitions):
-            print(repet_id, "repet_id")            
+            print(repetition_id, "repetition_id loading results")            
             average_heatmap, heatmaps_dict = utilities.grab_non_human_species_EDR_results(formulation_generate, directory, network_measures, optimization_metric_list, target_density, number_of_batches, repetition_id)
             moving_sum_average_heatmap += average_heatmap
             
-        moving_sum_average_heatmap /= n_EDR_vertex_repet
+        moving_sum_average_heatmap /= n_EDR_vertex_repetitions
         args_optimal = np.where(moving_sum_average_heatmap == np.max(moving_sum_average_heatmap))
         best_eta_prob = eta_prob_connection_array[args_optimal[0][0]]
 
         for repet_ in range(number_of_repetitions):
-            model = connectome_models.connectome_models.generate_EDR_non_human_species_model(best_eta_prob, model_parameters_and_variables)
+            model = connectome_models.generate_EDR_non_human_species_model(best_eta_prob, model_parameters_and_variables)
             model_idxes = model[idxes_parcel]
             
             if which_results == "main":
@@ -771,12 +784,12 @@ def generate_non_human_species_comparison_results(species, which_results, dense_
         number_of_repetitions = 100
         moving_sum_average_heatmap = 0
         count_ = 0
-        eta = get_non_human_species_distance_atlas_parameters(species)
+        eta_distance_atlas = get_non_human_species_distance_atlas_parameters(species)
 
         number_of_distance_atlas_repet = 20
         
         for repetition_id in range(number_of_distance_atlas_repet):
-            average_heatmap, _ = utilities.grab_distance_atlas_or_MI_heatmaps(optimization_metric_list_binary, directory, formulation_generate, target_density, connectome_type, fwhm, repetition_id, plot_heatmaps=False)
+            average_heatmap, _ = utilities.grab_distance_atlas_or_MI_heatmaps(optimization_metric_list_binary, directory, formulation_generate, target_density, connectome_type, fwhm, repetition_id)
             moving_sum_average_heatmap += average_heatmap
             count_ +=1
 
@@ -824,7 +837,7 @@ def generate_non_human_species_comparison_results(species, which_results, dense_
         number_of_MI_repet = 20 
         
         for repetition_id in range(number_of_MI_repet):
-            average_heatmap, _ = utilities.grab_distance_atlas_or_MI_heatmaps(optimization_metric_list_binary, directory, formulation_generate, target_density, connectome_type, fwhm, repetition_id, plot_heatmaps=False)
+            average_heatmap, _ = utilities.grab_distance_atlas_or_MI_heatmaps(optimization_metric_list_binary, directory, formulation_generate, target_density, connectome_type, fwhm, repetition_id)
             moving_sum_average_heatmap += average_heatmap
             count_ +=1
 
@@ -868,7 +881,7 @@ def generate_non_human_species_comparison_results(species, which_results, dense_
         number_of_repetitions = 100
         for repet_ in range(number_of_repetitions):
             print(repet_, f"repet Random")
-            model = connectome_models.generate_random_parcellated_model(n_vertices, total_possible_connections_vertex, n_connections_vertex, idxes_vertex, model_parameters_and_variables["characteristic_matrix"], idxes_parcel, n_edges_parcel_empirical, resampling_weights, weighted=False)
+            model = connectome_models.generate_random_parcellated_model(n_vertices, total_possible_connections, n_connections_vertex, idxes_vertex, model_parameters_and_variables["characteristic_matrix"], idxes_parcel, n_edges_parcel_empirical, resampling_weights, weighted=False)
             model_idxes = model[idxes_parcel]
             
             if which_results == "main":
@@ -914,6 +927,120 @@ def generate_non_human_species_comparison_results(species, which_results, dense_
     print("done and saved")
 
 
+def visualize_non_human_species_model_main_results_comparison(species, dense_or_sparse):
+    which_results = "main"
+    cmap = utilities.get_colormap()
+
+    color_optimized = cmap(0.5)
+    color_not_optimized = color_optimized
+    alpha = 0.8
+
+    formulation_GEM = "GEM"
+    formulation_EDR_vertex = "EDR-vertex"
+    formulation_distance_atlas = "distance-atlas"
+    formulation_MI = "MI"
+    formulation_Random = "Random"
+
+    list_of_models = [formulation_GEM, formulation_EDR_vertex, formulation_distance_atlas, formulation_MI, formulation_Random]
+
+    species_parameters = get_animal_paramameters(species, dense_or_sparse)
+    _, _, _, _, target_density, _, resampling_weights = species_parameters
+
+    connectome_type = "atlas_species"
+    fwhm = None
+    
+    k_range = np.array([k_ for k_ in range(2, 200)])
+
+    ### Network mesasures that will be displayed
+    network_measures = ["degreeBinary", "spearman_union_weights", "ranked_weights_strength"]
+    # network_measures = ["node connection distance", "true_positive_rate", "clustering"]
+    
+    # optimization_metric_list = ["degreeBinary", "ranked_weights_strength", "spearman_union_weights"]
+    optimization_metric_list = optimization_metric_species(species, dense_or_sparse)
+    optimization_metric_list_binary = ["degreeBinary", "true_positive_rate"]
+
+    opt_metric_str = "_".join(optimization_metric_list)
+    opt_metric_str_binary = "_".join(optimization_metric_list_binary)
+
+    optimization_str_dict = {formulation_GEM:opt_metric_str,  formulation_EDR_vertex:opt_metric_str, formulation_distance_atlas:opt_metric_str_binary, formulation_MI:opt_metric_str_binary, formulation_Random:"None"}
+
+    measure_colors = {measure: color_optimized for measure in network_measures}
+    
+    exclude_models_by_measure = {
+    "spearman_union_weights": ["MI", "distance-atlas"],
+    "ranked_weights_strength": ["MI", "distance-atlas"]}
+
+    model_optimization_metrics = {
+    formulation_GEM: optimization_metric_list,
+    formulation_EDR_vertex: optimization_metric_list,
+    formulation_distance_atlas: optimization_metric_list,
+    formulation_Random:optimization_metric_list,
+    }
+
+    print(which_results, "which reuslts")
+
+    def load_results(models, measures, which_results):
+        all_data = []
+        for model in models:
+            print(model, "model")
+            subdir = f"/{cwd}/data/results/non_human_species/{species}/resampled_weights_{resampling_weights}_formulation_{model}"       
+            opt_metric_model = optimization_str_dict[model]
+            subdir += f"/optimized_for_{opt_metric_model}_target_density_{target_density}"
+
+            filename = f"{which_results}_optimized_results.npy"
+            filepath = os.path.join(subdir, filename)
+
+            if not os.path.exists(filepath):
+                print(f"Skipping missing file: {filepath}")
+                continue
+
+            results_dict = np.load(filepath, allow_pickle=True).item()
+            if which_results == "main":
+                for measure in measures:
+                    print(measure, "measure")
+                    if measure not in results_dict:
+                        continue
+                    dum_list = []
+                    for val in results_dict[measure]:
+                        all_data.append({
+                            "model": model,
+                            "measure": measure,
+                            "value": val
+                        })
+                        dum_list.append(val)
+                        # print(np.mean(dum_list), "mean score")
+            else:
+                all_data.append({
+                            "model": model,
+                            "value": list(results_dict.values())
+                        })
+
+        return pd.DataFrame(all_data)
+
+    df_net = load_results(list_of_models, network_measures, which_results)
+    utilities.plot_all_measures_together(df_net, "Network Measure", measure_colors, exclude_models_by_measure, different_opt_metrics=True, model_optimization_metrics=model_optimization_metrics, color_optimized=color_optimized, color_not_optimized=color_not_optimized, alpha=alpha)
+    plt.show()
+
+
+def visualize_non_human_species_model_modularity_comparison(species, dense_or_sparse):
+    pass
+
+
+def visualize_non_human_species_model_spectral_distance_comparison(species, dense_or_sparse):
+    pass
+
+
+def compare_non_human_species_models(species, which_results, dense_or_sparse):
+    if which_results == "main":
+        visualize_non_human_species_model_main_results_comparison(species, dense_or_sparse)
+    elif which_results == "modularity":
+        dense_or_sparse = "sparse"
+        visualize_non_human_species_model_modularity_comparison(species, dense_or_sparse)
+    elif which_results == "spectral":
+        dense_or_sparse = "sparse"
+        visualize_non_human_species_model_spectral_distance_comparison(species, dense_or_sparse)
+
+
 # Current working director
 cwd = os.getcwd()
 
@@ -939,12 +1066,12 @@ def mainFunction():
     These functions have to be run sequentially.
     """
     
-    species = "Mouse" # Has both dense and sparse
+    # species = "Mouse" # Has both dense and sparse
     # species = "Marmoset" # Dense only
-    # species = "Macaque" # Has both dense and sparse
+    species = "Macaque" # Has both dense and sparse
 
-    dense_or_sparse = "dense"
-    # dense_or_sparse = "sparse"
+    # dense_or_sparse = "dense"
+    dense_or_sparse = "sparse"
 
     # 1. Generate the geometric eigenmodes
     # generate_geometric_modes(species)
@@ -962,10 +1089,10 @@ def mainFunction():
     # results = "spectral"
     
     #4. Generate benchmark models
-    generate_non_human_species_comparison_results(species, which_results=results, dense_or_sparse=dense_or_sparse)
+    # generate_non_human_species_comparison_results(species, which_results=results, dense_or_sparse=dense_or_sparse)
 
     #5. Compare GEM performance with other models
-    # compare_non_human_species_models(species, which_results=results)
+    compare_non_human_species_models(species, which_results=results, dense_or_sparse=dense_or_sparse)
 
 
 if __name__ == "__main__":

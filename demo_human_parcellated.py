@@ -587,7 +587,7 @@ def generate_human_parcellated_comparison_results(number_of_parcels, which_resul
         number_of_distance_atlas_repet = 20
         
         for repetition_id in range(number_of_distance_atlas_repet):
-            average_heatmap, _ = utilities.grab_distance_atlas_or_MI_heatmaps(optimization_metric_list_binary, directory, formulation_generate, target_density, connectome_type, fwhm, repetition_id, plot_heatmaps=False)
+            average_heatmap, _ = utilities.grab_distance_atlas_or_MI_heatmaps(optimization_metric_list_binary, directory, formulation_generate, target_density, connectome_type, fwhm, repetition_id)
             moving_sum_average_heatmap += average_heatmap
             count_ +=1
 
@@ -636,7 +636,7 @@ def generate_human_parcellated_comparison_results(number_of_parcels, which_resul
         number_of_MI_repet = 20 
         
         for repetition_id in range(number_of_MI_repet):
-            average_heatmap, _ = utilities.grab_distance_atlas_or_MI_heatmaps(optimization_metric_list_binary, directory, formulation_generate, target_density, connectome_type, fwhm, repetition_id, plot_heatmaps=False)
+            average_heatmap, _ = utilities.grab_distance_atlas_or_MI_heatmaps(optimization_metric_list_binary, directory, formulation_generate, target_density, connectome_type, fwhm, repetition_id)
             moving_sum_average_heatmap += average_heatmap
             count_ +=1
 
